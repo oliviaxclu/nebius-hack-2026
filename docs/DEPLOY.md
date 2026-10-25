@@ -11,12 +11,16 @@ python -m uvicorn prime.web:create_app --factory --port 8080
 ```
 ## 1. A dedicated, capped key
 Create a **separate Token Factory API key for the demo** and delete it after judging. In-app caps: `DEMO_MAX_CALLS_PER_SESSION` (25) and `DEMO_MAX_CALLS_PER_DAY` (500). A question runs the agent loop (several model calls), so size the daily cap against your credit.
-## 2. Build and push
+## 2. Build and push (to Nebius Container Registry)
+Serverless Endpoints run linux/amd64. On an Apple Silicon Mac, build for that platform explicitly, or the endpoint will not start.
 ```bash
-docker build -t <dockerhub-user>/prime-demo:0.2 .
-docker push <dockerhub-user>/prime-demo:0.2        # the image contains no secrets; keep the repo public
+export REGION_ID=eu-north1                                                     # CHECK: your project's region
+export REGISTRY_PATH=$(nebius registry create --name prime --format json | jq -r ".metadata.id" | cut -d- -f 2)
+nebius registry configure-helper                                               # lets docker push to cr.<region>.nebius.cloud
+export IMAGE=cr.$REGION_ID.nebius.cloud/$REGISTRY_PATH/prime-demo:0.3
+docker buildx build --platform linux/amd64 -t $IMAGE --push .                  # the image contains no secrets
 ```
-(Or Nebius Container Registry: `nebius iam get-access-token | docker login cr.<region>.nebius.cloud --username iam --password-stdin`.)
+(Docker Hub also works: `docker buildx build --platform linux/amd64 -t <user>/prime-demo:0.3 --push .`)
 ## 3. Create the endpoint
 ```bash
 nebius ai endpoint create \
