@@ -174,7 +174,8 @@ def create_app(settings: Settings | None = None, llm_factory=None, root: Path | 
     @app.get("/health")
     @app.get("/api/health")
     def health():
-        return {"ok": True, "model": settings.model, "key_configured": bool(settings.api_key), "speech": bool(settings.speech_model)}
+        return {"ok": True, "version": os.environ.get("PRIME_VERSION", "dev"), "model": settings.model,
+                "key_configured": bool(settings.api_key), "speech": bool(settings.speech_model)}
 
     # ---------------- data for the left panel ----------------
     @app.get("/api/overview")
