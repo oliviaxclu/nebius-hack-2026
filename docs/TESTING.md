@@ -41,6 +41,7 @@ Check each:
 - [ ] The red "Pattern worth a clinic call" card appears with the days and the safe next steps; the red-underlined days 13–20 match.
 - [ ] Click day 10 (a steroid day): afternoon is high, fasting is near normal; the text under the chart says the same in words.
 - [ ] Click day 28: a hatched region labelled "sensor?" around 3 AM.
+- [ ] **Visit note** (needs a key): the button writes a three-section note in a few seconds, names Nemotron-3-Ultra in its footer, lists the sources it cited, and the audit panel shows a `visit-note` call. Run it three times: it must never show reasoning text or a half-written note.
 - [ ] **Sensor check** works without a key: pick a sensor, the steps follow that sensor and show their source links, and Guardian 4 / Eversense show what they cannot do. With a key, "Check with camera" on a sensor kit, bare skin, an applicator with its cap off, and a patch with a lifted edge gives the right answer, and a plain object held up never gets an "ok".
 - [ ] **Pen check** works without a key: steps are read aloud (browser voice), Next/Back/Repeat work, and the two-caps step is clear.
 - [ ] Keyboard only: Tab reaches everything; Escape stops speech; the skip link jumps to the question box.
