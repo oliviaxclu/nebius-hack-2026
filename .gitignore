@@ -1,0 +1,10 @@
+.env
+.prime-data/
+*.db
+__pycache__/
+*.egg-info/
+.pytest_cache/
+demo_data/
+.venv/
+.DS_Store
+.claude/

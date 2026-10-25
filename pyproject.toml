@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prime"
+version = "0.2.0"
+description = "Local-first glucose explainer for people on insulin: explains why, checks whether the dose seemed to work, built voice-first for low vision. Nemotron on Nebius Token Factory."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = ["openai>=1.40"]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx", "fastapi>=0.110", "uvicorn>=0.29"]
+web = ["fastapi>=0.110", "uvicorn>=0.29"]
+
+[project.scripts]
+prime = "prime.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["prime*"]
+
+[tool.setuptools.package-data]
+prime = ["static/*"]

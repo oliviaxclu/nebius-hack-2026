@@ -1,0 +1,948 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prime: why your glucose did that, and did the insulin work</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Atkinson Hyperlegible was designed by the Braille Institute for readers with low vision. -->
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --scale:1;
+  --bg:#FAF9F6; --surface:#FFFFFF; --ink:#151515; --muted:#4A4A4A; --line:#D9D5CD;
+  --accent:#0A58A8; --on-accent:#FFFFFF; --alert:#A3122F; --on-alert:#FFFFFF; --ok:#0B6A4E; --band:rgba(11,106,78,.12); --focus:#0A58A8;
+  --font:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#121212;--surface:#1C1C1C;--ink:#F3F3F3;--muted:#BBBBBB;--line:#3A3A3A;
+    --accent:#8CBCFF;--on-accent:#0A1A2F;--alert:#FF9BAA;--on-alert:#1B0A0D;--ok:#79D8B4;--band:rgba(121,216,180,.14);--focus:#8CBCFF;color-scheme:dark}
+}
+/* High contrast: white and yellow on black, the pairing many low-vision readers prefer. */
+body.hc{--bg:#000;--surface:#000;--ink:#FFF;--muted:#FFF;--line:#FFF;--accent:#FFE14D;--on-accent:#000;--alert:#FF8A8A;--on-alert:#000;--ok:#7CFFB2;--band:rgba(124,255,178,.2);--focus:#FFE14D}
+*{box-sizing:border-box}
+html,body{height:100%}
+html{font-size:calc(18px*var(--scale))}
+body{margin:0;background:var(--bg);color:var(--ink);font:1rem/1.6 var(--font);display:flex;flex-direction:column;height:100dvh;-webkit-text-size-adjust:100%}
+button,select,textarea,input{font:inherit;color:inherit}
+button{cursor:pointer;min-height:48px}
+:focus-visible{outline:3px solid var(--focus);outline-offset:3px;border-radius:6px}
+a{color:var(--accent);text-underline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.skip{position:absolute;left:-999px;top:8px;background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:8px;z-index:20;font-weight:700}
+.skip:focus{left:8px}
+[hidden]{display:none!important}
+
+/* ---------- top bar ---------- */
+/* The header and composer grow with text size up to about 140%, so reading space survives very large text. */
+.bar,#composer{font-size:min(1rem,25px)}
+.bar{border-bottom:1px solid var(--line);flex:none}
+.top,.views{max-width:760px;margin:0 auto;width:100%;display:flex;align-items:center}
+.top{gap:8px;padding:12px 20px 4px;flex-wrap:wrap}
+.brand{font-size:1.5em;font-weight:700;margin:0;flex:1;letter-spacing:-.01em}
+.tools{display:flex;gap:8px}
+.tbtn{min-height:48px;padding:0 18px;white-space:nowrap;border-radius:999px;border:2px solid var(--line);background:transparent;font-weight:700}
+.tbtn:hover{border-color:var(--ink)}
+.views{gap:4px;padding:0 12px;overflow-x:auto;scrollbar-width:none}
+.views button{flex:1 0 auto;max-width:200px;white-space:nowrap;border:0;border-bottom:3px solid transparent;background:transparent;font-weight:700;color:var(--muted);padding:8px 4px;border-radius:0}
+.views button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--ink)}
+
+main{flex:1;min-height:0;display:flex;flex-direction:column}
+.view{flex:1;min-height:0;overflow:auto}
+.wrap{max-width:760px;margin:0 auto;padding:28px 20px 48px}
+
+/* ---------- ask ---------- */
+#view-ask{display:flex;flex-direction:column;overflow:hidden}
+#log{flex:1;overflow:auto;outline:none}
+#log .wrap{padding-bottom:16px}
+.hello{font-size:2rem;line-height:1.2;margin:0 0 10px;letter-spacing:-.01em}
+.lede{color:var(--muted);font-size:1.1rem;margin:0 0 32px;max-width:44ch}
+.alert{border-left:6px solid var(--alert);padding:2px 0 2px 18px;margin:0 0 36px}
+.alert h3{color:var(--alert);font-size:1.15rem;line-height:1.35;margin:0 0 6px}
+.alert p{margin:0 0 12px;max-width:52ch}
+.acts{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.alert details{margin-top:8px}
+.alert ul{margin:8px 0 0;padding-left:1.2em}
+.alert li{margin:4px 0}
+.label{font-size:.9rem;font-weight:700;color:var(--muted);margin:0 0 4px}
+.starters{list-style:none;margin:0;padding:0}
+.starter{display:flex;justify-content:space-between;align-items:center;gap:16px;width:100%;min-height:64px;padding:14px 4px;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;font-size:1.05rem;line-height:1.4}
+.starters li:first-child .starter{border-top:1px solid var(--line)}
+.starter .arr{color:var(--muted);font-size:1.2rem;flex:none}
+.starter:hover .arr{color:var(--ink)}
+.demo{color:var(--muted);font-size:.9rem;margin:32px 0 0}
+
+.btn{min-height:48px;padding:0 20px;border-radius:999px;border:2px solid var(--ink);background:var(--ink);color:var(--bg);font-weight:700}
+.btn.quiet{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.quiet:hover{border-color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.linkbtn{background:none;border:0;padding:0 2px;color:var(--accent);text-decoration:underline;text-underline-offset:3px;font-weight:700;min-height:44px;text-align:left}
+summary{cursor:pointer;font-weight:700;color:var(--accent);min-height:44px;display:flex;align-items:center;gap:6px;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"";width:.5em;height:.5em;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);margin-right:4px;transition:transform .15s}
+details[open]>summary::before{transform:rotate(45deg)}
+
+.turn{padding:0 0 28px;margin:0 0 28px;border-bottom:1px solid var(--line)}
+.turn:last-child{border-bottom:0}
+.q{font-weight:700;font-size:1.2rem;line-height:1.4;margin:0 0 14px}
+.a{font-size:1.15rem;line-height:1.7;max-width:62ch}
+.a p{margin:0 0 .9em}
+.a ul,.a ol{margin:0 0 1em;padding-left:1.3em}
+.a li{margin:.3em 0}
+.a h4{font-size:1.05rem;margin:1.2em 0 .3em}
+.thinking{color:var(--muted);font-size:1.1rem}
+.meta{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.meta .row{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
+.sources ul{list-style:none;margin:4px 0 0;padding:0}
+.sources li{margin:2px 0}
+.note{color:var(--muted);font-size:.95rem;margin:6px 0 0}
+.warn{color:var(--alert);font-weight:700;margin:6px 0 0}
+.err{color:var(--alert);font-weight:700}
+
+#composer{flex:none;border-top:1px solid var(--line);background:var(--bg)}
+#composer .inner{max-width:760px;margin:0 auto;padding:12px 20px calc(14px + env(safe-area-inset-bottom))}
+#form{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.mic{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:56px;padding:0 24px 0 20px;border-radius:999px;border:0;background:var(--accent);color:var(--on-accent);font-weight:700;font-size:1.05em}
+.mic svg{width:1.35em;height:1.35em;flex:none}
+.mic[aria-pressed="true"]{background:var(--alert);color:var(--on-alert)}
+@media (prefers-reduced-motion:no-preference){
+  .mic[aria-pressed="true"]{animation:pulse 1.8s ease-out infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 var(--alert)}100%{box-shadow:0 0 0 16px transparent}}
+}
+.field{flex:1;display:flex;gap:10px;align-items:flex-end;min-width:0}
+#q{flex:1;min-width:0;min-height:56px;max-height:170px;resize:none;border:2px solid var(--line);border-radius:28px;padding:14px 20px;background:var(--surface);font-size:1.05em;line-height:1.4}
+#q::placeholder{color:var(--muted);opacity:1}
+#q:focus{border-color:var(--ink);outline:none}
+#send{min-height:56px}
+.vstatus{font-size:1.15em;font-weight:700;margin:0 0 10px;display:flex;align-items:center;gap:10px}
+.vstatus::before{content:"";width:12px;height:12px;border-radius:50%;background:var(--alert);flex:none}
+.vstatus:empty{display:none}
+.fine{font-size:.9em;color:var(--muted);margin:8px 0 0;text-align:center}
+.fine:empty{display:none}
+@media (max-width:560px){
+  .mic{flex:1 0 100%;min-height:64px;font-size:1.15em}
+  .hello{font-size:1.7rem}
+}
+
+/* ---------- my days ---------- */
+.h2{font-size:1.7rem;line-height:1.25;margin:0 0 6px}
+.sub{color:var(--muted);margin:0 0 32px;max-width:52ch}
+.sec{margin:0 0 40px}
+.h3{font-size:1.2rem;margin:0 0 12px}
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.day{min-height:60px;border:2px solid transparent;border-radius:14px;background:var(--surface);padding:4px 0;text-align:center;line-height:1.1}
+body.hc .day{border-color:#fff}
+.day b{display:block;font-size:1.1rem}
+.day .g{display:block;font-size:.8rem;min-height:1em;color:var(--alert);font-weight:700}
+.day:hover{border-color:var(--line)}
+.day[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.day[aria-pressed="true"] .g{color:inherit}
+.key{color:var(--muted);font-size:.9rem;margin:10px 0 0}
+svg.chart{display:block;width:100%;height:auto;margin:4px 0 0}
+.c-band{fill:var(--band)} .c-ref{stroke:var(--ok);stroke-dasharray:4 3} .c-axis{fill:var(--muted);font:15px var(--font)}
+.c-line{stroke:var(--ink);fill:none;stroke-width:2.5} .c-hatch{stroke:var(--alert);stroke-width:2} .c-art{fill:var(--alert);font:700 15px var(--font)}
+.c-meal{fill:var(--ok)} .c-ster{fill:var(--muted)} .c-ins{fill:var(--accent)}
+.daytext{font-size:1.05rem;margin:14px 0 0;max-width:60ch}
+.list{list-style:none;margin:0;padding:0}
+.list li{padding:12px 0;border-bottom:1px solid var(--line)}
+.list li:first-child{border-top:1px solid var(--line)}
+.list .nm{font-weight:700}
+.list .dim{color:var(--muted);display:block;font-size:.95rem}
+.jform{display:flex;flex-direction:column;gap:8px;margin-top:16px}
+.jform label{font-weight:700}
+.jform textarea{min-height:88px;resize:vertical;border:2px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--surface)}
+.jform textarea:focus{border-color:var(--ink);outline:none}
+.jform .btn{align-self:flex-start}
+
+/* ---------- privacy ---------- */
+.call{border-bottom:1px solid var(--line);padding:6px 0}
+.call:first-child{border-top:1px solid var(--line)}
+.call .dim{color:var(--muted);font-size:.95rem;margin:0 0 8px}
+.ph{background:var(--accent);color:var(--on-accent);border-radius:4px;padding:0 5px;font-weight:700}
+.m{padding:10px 0;border-top:1px dashed var(--line);font:.85rem/1.55 var(--mono);white-space:pre-wrap;word-break:break-word}
+.m .role{font:700 .9rem var(--font);display:block;margin-bottom:2px}
+.m details summary{font:.85rem var(--mono);color:var(--ink);min-height:0}
+.m details summary::before{display:none}
+
+/* ---------- dialogs ---------- */
+dialog{border:0;border-radius:22px;padding:28px 26px;max-width:540px;width:calc(100% - 32px);max-height:calc(100dvh - 32px);background:var(--surface);color:var(--ink);box-shadow:0 24px 64px rgba(0,0,0,.35)}
+body.hc dialog{border:2px solid #fff}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+dialog h2{font-size:1.5rem;margin:0 0 8px;line-height:1.25}
+.dhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.close{flex:none;min-width:48px;border-radius:999px;border:2px solid var(--line);background:transparent;font-weight:700;padding:0 16px}
+dialog dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:14px 0}
+dialog dt{color:var(--muted)} dialog dd{margin:0;word-break:break-word}
+.setrow{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+.setrow:last-of-type{border-bottom:0}
+.setrow .lbl{font-weight:700}
+.setrow .hintx{display:block;color:var(--muted);font-weight:400;font-size:.9rem}
+.stepper{display:flex;align-items:center;gap:8px}
+.stepper button{min-width:52px;border-radius:999px;border:2px solid var(--line);background:transparent;font-weight:700;font-size:1.05rem}
+.stepper output{min-width:3.5em;text-align:center;font-weight:700}
+.switch{position:relative;width:64px;min-height:36px;height:36px;border-radius:999px;border:2px solid var(--ink);background:transparent;flex:none;padding:0}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:var(--ink);transition:left .15s}
+.switch[aria-checked="true"]{background:var(--accent);border-color:var(--accent)}
+.switch[aria-checked="true"]::after{left:32px;background:var(--on-accent)}
+select{min-height:48px;border:2px solid var(--line);border-radius:12px;background:var(--surface);padding:0 12px;max-width:100%;min-width:0}
+.setrow{flex-wrap:wrap}
+#penpick,#coachzone{flex:1 1 240px}
+.dfoot{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+.dfoot .btn{line-height:1.25;padding-top:10px;padding-bottom:10px}
+.pen .count{color:var(--muted);font-weight:700}
+.pen .step{font-size:1.65rem;line-height:1.35;margin:16px 0 8px;font-weight:700}
+.pen ul{font-size:1.1rem}
+.camview{position:relative;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:4/3;margin:14px 0 4px}
+.camview video{width:100%;height:100%;object-fit:contain;display:block}
+.camview canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.mirror{transform:scaleX(-1)}
+.cam .step{font-size:1.45rem;margin:12px 0 4px}
+.frames{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.frames img{height:84px;border-radius:8px;border:1px solid var(--line)}
+.plan{margin:6px 0 4px}
+.plan .spot{font-size:1.25rem;font-weight:700;margin:0 0 6px}
+.plan ul{margin:6px 0 0;padding-left:1.2em}
+.plan li{margin:3px 0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<a class="skip" href="#q">Skip to the question box</a>
+<div class="bar">
+  <header class="top">
+    <h1 class="brand">Prime</h1>
+    <div class="tools">
+      <button class="tbtn" id="penbtn" type="button" aria-haspopup="dialog">Pen check</button>
+      <button class="tbtn" id="setbtn" type="button" aria-haspopup="dialog">Settings</button>
+    </div>
+  </header>
+  <nav class="views" aria-label="Sections">
+    <button type="button" data-view="ask" aria-current="page">Ask</button>
+    <button type="button" data-view="data">My days</button>
+    <button type="button" data-view="privacy">Privacy</button>
+  </nav>
+</div>
+
+<main id="main">
+  <section class="view" id="view-ask" aria-label="Ask">
+    <div id="log" role="log" aria-live="polite" aria-label="Conversation" tabindex="-1">
+      <div class="wrap" id="turns">
+        <div id="welcome">
+          <h2 class="hello">What would you like to know?</h2>
+          <p class="lede">Ask why your glucose went up or down. Prime explains using your own records and never tells you how much insulin to take.</p>
+          <div id="alert"></div>
+          <p class="label" id="trylabel">Try asking</p>
+          <ul class="starters" id="starters" aria-labelledby="trylabel"></ul>
+          <p class="demo">This is a demo with a fictional patient. It is not medical advice.</p>
+        </div>
+      </div>
+    </div>
+    <div id="composer"><div class="inner">
+      <div class="vstatus" id="vstatus" role="status" aria-live="assertive"></div>
+      <form id="form">
+        <button class="mic" id="mic" type="button" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+          <span id="miclabel">Talk</span>
+        </button>
+        <div class="field">
+          <label class="sr" for="q">Your question</label>
+          <textarea id="q" rows="1" placeholder="Or type here" maxlength="2000"></textarea>
+          <button class="btn" id="send" type="submit">Ask</button>
+        </div>
+      </form>
+      <p class="fine" id="remain"></p>
+    </div></div>
+  </section>
+
+  <section class="view" id="view-data" aria-labelledby="h-data" hidden>
+    <div class="wrap">
+      <h2 class="h2" id="h-data">My days</h2>
+      <p class="sub">Thirty days of glucose, insulin, meals, medicines and sleep. All of it stays on this device.</p>
+      <div id="overview"><p class="sub">Loading…</p></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-privacy" aria-labelledby="h-priv" hidden>
+    <div class="wrap">
+      <h2 class="h2" id="h-priv">Privacy</h2>
+      <p class="sub">Your records stay on this device. When you ask a question, names and other identifiers are replaced before anything is sent to the model. Here is exactly what was sent.</p>
+      <div id="ledger"><p class="sub">Nothing has left your device yet.</p></div>
+    </div>
+  </section>
+</main>
+
+<dialog id="settings" aria-labelledby="settitle">
+  <div class="dhead"><h2 id="settitle">Settings</h2><button class="close" type="button" data-close>Done</button></div>
+  <div class="setrow"><span class="lbl" id="l-size">Text size</span>
+    <div class="stepper" role="group" aria-labelledby="l-size">
+      <button type="button" id="smaller" aria-label="Smaller text">A−</button><output id="sizeout" aria-live="polite">100%</output><button type="button" id="bigger" aria-label="Larger text">A+</button>
+    </div></div>
+  <div class="setrow"><span class="lbl" id="l-hc">High contrast<span class="hintx">White and yellow on black</span></span>
+    <button class="switch" id="contrast" type="button" role="switch" aria-checked="false" aria-labelledby="l-hc"></button></div>
+  <div class="setrow"><span class="lbl" id="l-aloud">Read answers aloud</span>
+    <button class="switch" id="aloud" type="button" role="switch" aria-checked="true" aria-labelledby="l-aloud"></button></div>
+  <div class="setrow" id="speechrow" hidden><label class="lbl" for="speechpref">Speech to text<span class="hintx" id="speechhint"></span></label>
+    <select id="speechpref"><option value="server">Nemotron Omni on Nebius</option><option value="browser">Browser</option></select></div>
+  <div class="setrow"><label class="lbl" for="rate">Speaking speed</label>
+    <select id="rate"><option value="0.8">Slower</option><option value="0.95">Normal</option><option value="1.15">Faster</option></select></div>
+  <div class="dfoot">
+    <a class="btn quiet" href="/calendar.ics" download style="display:inline-flex;align-items:center;text-decoration:none">Add reminders to my calendar</a>
+    <button class="btn quiet" id="reset" type="button">Start the demo over</button>
+  </div>
+</dialog>
+<dialog id="rec" aria-labelledby="rectitle"><div id="recbody"></div><div class="dfoot"><button class="btn" type="button" data-close>Close</button></div></dialog>
+<dialog id="pen" class="pen" aria-labelledby="pentitle"><div id="penbody"></div></dialog>
+<dialog id="vcheck" class="cam" aria-labelledby="vctitle">
+  <div class="dhead"><h2 id="vctitle">Camera check</h2><button class="close" type="button" id="vcx">Close</button></div>
+  <p class="note">Only a cropped picture of your hands and pen is sent, to check this one step. Nothing is stored.</p>
+  <div class="camview" id="vcview"><video id="vcvideo" class="mirror" playsinline muted aria-hidden="true"></video><canvas id="vcdraw" class="mirror" aria-hidden="true"></canvas></div>
+  <p class="step" id="vcsay" role="status" aria-live="assertive"></p>
+  <div id="vcresult"></div>
+  <div class="dfoot"><button class="btn" id="vcgo" type="button">Take it now</button></div>
+</dialog>
+<dialog id="coach" class="cam" aria-labelledby="coachtitle">
+  <div class="dhead"><h2 id="coachtitle">Injection coach</h2><button class="close" type="button" id="coachx">Close</button></div>
+  <div class="plan" id="coachplan"></div>
+  <div class="setrow"><label class="lbl" for="coachzone">Spot</label><select id="coachzone"></select></div>
+  <div class="camview" id="coachview"><video id="coachvideo" class="mirror" playsinline muted aria-hidden="true"></video><canvas id="coachdraw" class="mirror" aria-hidden="true"></canvas></div>
+  <p class="note">The camera stays on this device. Nothing is recorded or sent.</p>
+  <p class="step" id="coachsay" role="status" aria-live="assertive"></p>
+  <div class="dfoot"><button class="btn" id="coachgo" type="button">Start the count</button></div>
+</dialog>
+<script>
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmtD = iso => { if(!iso) return ""; const [y,m,d]=iso.slice(0,10).split("-"); return MON[+m-1]+" "+(+d); };
+const fmtT = hhmm => { const [h,m]=hhmm.split(":").map(Number); return ((h%12)||12)+":"+String(m).padStart(2,"0")+" "+(h<12?"AM":"PM"); };
+const prettyDates = s => String(s).replace(/\b\d{4}-\d{2}-\d{2}\b/g, fmtD);
+const num = v => (Math.round(v*10)/10).toString();
+const S = {overview:null, day:null, selected:null, aloud:true, scale:1, hc:false, rate:0.95, hands:false, view:"ask"};
+
+async function api(path, opts){
+  const r = await fetch(path, {headers:{"Content-Type":"application/json"}, ...opts});
+  let data = null; try { data = await r.json(); } catch(e) {}
+  if(!r.ok) throw new Error((data && data.detail) || ("Something went wrong (error "+r.status+"). Please try again."));
+  return data;
+}
+
+/* ---------- citations: pulled out of the prose and listed under the answer ---------- */
+const CITE_ID = "(?:day:\\d{4}-\\d{2}-\\d{2})|(?:(?:ins|meal|rx|ste|j|site):\\d+)|(?:src:[0-9a-f]{8})";
+// A run of citations, joined by punctuation or "through/to/and/or", optionally in parentheses: "(see [day:a] through [day:b])" style debris.
+const CITE_ONE = `\\[(?:${CITE_ID})\\]`, CITE_SEP = "(?:[ \\t,;…–—-]|\\bthrough\\b|\\bto\\b|\\band\\b|\\bor\\b)*";
+const CITE_GROUP = `${CITE_ONE}(?:${CITE_SEP}${CITE_ONE})*`;
+const CITE_RUN = new RegExp(`[ \\t]*(?:\\(\\s*${CITE_GROUP}\\s*\\)|${CITE_GROUP})`, "g");
+const TOOL_REF = /\s*\[[a-z]+(?:_[a-z]+)+\]/g;   // the model sometimes cites a tool by name: [check_dose_response]
+function stripCites(text){
+  const ids = [...new Set([...String(text).matchAll(new RegExp(`\\[(${CITE_ID})\\]`, "g"))].map(m=>m[1]))];
+  const clean = String(text).replace(CITE_RUN, " ").replace(TOOL_REF, "")
+    // Leftover internal names read as words: `possible_compression_artifact`: true -> possible compression artifact
+    .replace(/`?\b([a-z]+(?:_[a-z]+)+)\b`?(?:\s*:\s*(?:true|false)\b)?/g, (m, id) => id.replace(/_/g, " ")).replace(/\(\s*[–—-]\s*/g, "(").replace(/[^\S\n]+([.,;:!?)])/g, "$1").replace(/[^\S\n]{2,}/g, " ").replace(/[^\S\n]+\n/g, "\n");
+  return {clean, ids};
+}
+
+/* ---------- speech ---------- */
+function plainSpeech(text){ return stripCites(text).clean.replace(/\[(?:[a-z]+:[0-9a-fA-F\-]+)\]/g,"").replace(/[*#_`]/g,"").replace(/\s+/g," ").trim(); }
+/* done() runs once when speech finishes (or at once if nothing is spoken). Cancelled speech never calls it.
+   Text is spoken sentence by sentence: Chrome can drop the end event of one long utterance. */
+let speechId = 0;
+function speak(text, done){
+  const id = ++speechId, finish = () => { if(id===speechId && done) done(); };
+  if(!("speechSynthesis" in window) || !S.aloud){ finish(); return; }
+  window.speechSynthesis.cancel();
+  const parts = plainSpeech(text).match(/[^.!?]+[.!?]*/g) || [];
+  if(!parts.length){ finish(); return; }
+  parts.forEach((p, i) => { const u = new SpeechSynthesisUtterance(p.trim()); u.rate = S.rate;
+    if(i===parts.length-1){ u.onend = finish; } u.onerror = e => { if(e.error!=="interrupted" && e.error!=="canceled") finish(); };
+    window.speechSynthesis.speak(u); });
+}
+function stopSpeaking(){ speechId++; if("speechSynthesis" in window) window.speechSynthesis.cancel(); }
+document.addEventListener("keydown", e => { if(e.key==="Escape"){ stopSpeaking(); stopHandsFree("Voice off."); } });
+
+/* ---------- views ---------- */
+function setView(v){
+  S.view=v; document.querySelectorAll(".views button").forEach(b=>b.dataset.view===v?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
+  ["ask","data","privacy"].forEach(k=>{ $("#view-"+k).hidden = k!==v; });
+  if(v==="privacy") loadLedger();
+  if(v==="data" && S.day) $("#daybox").innerHTML=chartSvg(S.day);
+}
+document.querySelectorAll(".views button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
+
+/* ---------- day chart (inline SVG, with a text equivalent) ---------- */
+function chartSvg(day){
+  // Drawn at the box's real pixel width so axis labels stay readable on a phone.
+  const W=Math.max(300,Math.round($("#daybox")?.clientWidth||680)), H=Math.round(Math.min(300,Math.max(230,W*.45))), L=46,R=10,T=30,B=32, pts=day.points.map(([t,g])=>{const [h,m]=t.split(":").map(Number);return [h+m/60,g,t]});
+  const lo=Math.min(40,Math.min(...pts.map(p=>p[1]))-8), hi=Math.max(260,Math.max(...pts.map(p=>p[1]))+14);
+  const x=h=>L+(W-L-R)*h/24, y=g=>T+(H-T-B)*(1-(g-lo)/(hi-lo));
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-labelledby="ct cd"><title id="ct">Glucose on ${fmtD(day.date)}</title><desc id="cd">${esc(dayText(day))}</desc>`;
+  s+=`<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="c-hatch" x1="0" y1="0" x2="0" y2="6"/></pattern></defs>`;
+  s+=`<rect class="c-band" x="${L}" y="${y(180)}" width="${W-L-R}" height="${y(70)-y(180)}"/>`;
+  [70,180].forEach(g=>{ s+=`<line class="c-ref" x1="${L}" x2="${W-R}" y1="${y(g)}" y2="${y(g)}"/><text class="c-axis" x="${L-6}" y="${y(g)+4}" text-anchor="end">${g}</text>`; });
+  [0,6,12,18].forEach(h=>{ s+=`<text class="c-axis" x="${x(h)}" y="${H-8}" text-anchor="middle">${fmtT(String(h).padStart(2,"0")+":00").replace(":00","")}</text>`; });
+  day.excursions.filter(e=>e.kind==="low").forEach(e=>{ const a=e.start.slice(11,16).split(":"), b=e.end.slice(11,16).split(":"); const x1=x(+a[0]+a[1]/60), x2=x(+b[0]+b[1]/60+.25);
+    s+=`<rect x="${x1}" y="${T}" width="${Math.max(3,x2-x1)}" height="${H-T-B}" fill="url(#hatch)" opacity=".35"/>`+(e.possible_compression_artifact?`<text class="c-art" x="${x1}" y="${T-12}">sensor?</text>`:""); });
+  let d="", prev=null; pts.forEach(p=>{ d+=(prev===null||p[0]-prev>0.55?"M":"L")+x(p[0]).toFixed(1)+" "+y(p[1]).toFixed(1)+" "; prev=p[0]; });
+  s+=`<path class="c-line" d="${d}"/>`;
+  const tm=t=>{const [h,m]=t.split(":").map(Number);return x(h+m/60)};
+  day.meals.forEach(m=>{ s+=`<circle class="c-meal" cx="${tm(m.t)}" cy="${T-10}" r="6"><title>${esc(m.label)} at ${fmtT(m.t)}</title></circle>`; });
+  day.steroid.forEach(m=>{ const cx=tm(m.t); s+=`<rect class="c-ster" x="${cx-5}" y="${T-14}" width="10" height="10" transform="rotate(45 ${cx} ${T-9})"><title>Prednisone ${m.mg} mg at ${fmtT(m.t)}</title></rect>`; });
+  day.insulin.forEach(m=>{ const cx=tm(m.t); s+=`<path class="c-ins" d="M${cx-6} ${T-4} L${cx+6} ${T-4} L${cx} ${T-15} Z"><title>Insulin ${m.units} units at ${fmtT(m.t)}</title></path>`; });
+  return s+"</svg>";
+}
+function dayText(day){
+  const sm=day.summary; let t=`${fmtD(day.date)}. Average ${Math.round(sm.mean)}, lowest ${sm.min}, highest ${sm.max}. In range ${Math.round(sm.tir_70_180_pct)} percent of the day.`;
+  if(day.steroid.length) t+=` Prednisone ${day.steroid.map(m=>m.mg+" mg at "+fmtT(m.t)).join(", ")}.`;
+  if(day.insulin.length) t+=` Insulin ${day.insulin.map(m=>m.units+" units at "+fmtT(m.t)).join(", ")}.`;
+  if(day.meals.length) t+=` Meals: ${day.meals.map(m=>m.label+" at "+fmtT(m.t)).join("; ")}.`;
+  day.excursions.filter(e=>e.kind==="low").forEach(e=>{ t+=` Low of ${e.peak_or_nadir} around ${fmtT(e.start.slice(11,16))}${e.possible_compression_artifact?" (looks like a sensor pressure artifact)":""}.`; });
+  return t;
+}
+
+/* ---------- the pattern alert (shown on Ask and on My days) ---------- */
+function alertHtml(p, key){
+  return `<section class="alert" aria-labelledby="alerth-${key}">
+    <h3 id="alerth-${key}">Your mornings ran high from ${fmtD(p.from)} to ${fmtD(p.to)}</h3>
+    <p>They were about ${Math.round(p.fasting_delta_mean)} above your usual, even though insulin was logged every night${p.dose_escalated?", including a higher dose":""}. This is worth a call to your care team. It is a pattern, not proof that a dose was missed.</p>
+    <div class="acts"><button class="btn" type="button" data-explain>Explain this</button></div>
+    <details><summary>What you can do</summary><ul>${p.safe_next_steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>${p.risk_note?`<p>${esc(p.risk_note)}</p>`:""}</details>
+  </section>`;
+}
+function explainPattern(){ const p=S.overview.pattern; setView("ask"); ask(`Why were my mornings so high from ${fmtD(p.from)} to ${fmtD(p.to)}, and did my insulin seem to work?`); }
+document.addEventListener("click", e=>{ if(e.target.closest("[data-explain]")) explainPattern(); });
+
+/* ---------- my days ---------- */
+function dayButton(d){
+  const g=[]; if(d.flagged_morning) g.push("▲"); if(d.has_low) g.push("▼");
+  const label=`${fmtD(d.date)}: fasting ${d.fasting??"unknown"}, in range ${Math.round(d.tir)} percent${d.steroid_mg_today?`, prednisone ${d.steroid_mg_today} mg`:""}${d.has_low?", low overnight":""}${d.has_artifact?", possible sensor artifact":""}${d.flagged_morning?", part of the high-morning pattern":""}`;
+  return `<button class="day" type="button" data-date="${d.date}" aria-pressed="${S.selected===d.date}" aria-label="${esc(label)}"><b>${+d.date.slice(8)}</b><span class="g" aria-hidden="true">${g.join("")}</span></button>`;
+}
+function renderOverview(){
+  const o=S.overview; let h="";
+  if(o.pattern) h+=alertHtml(o.pattern, "d");
+  h+=`<div class="sec"><h3 class="h3">Pick a day</h3><div class="strip" role="group" aria-label="Days">${o.days.map(dayButton).join("")}</div>
+      <p class="key" aria-hidden="true">▲ high morning &nbsp; ▼ low overnight</p></div>`;
+  h+=`<div class="sec"><h3 class="h3" id="daytitle">Selected day</h3><div id="daybox"></div><p class="daytext" id="daytext"></p>
+      <details><summary>How to read the chart</summary><p class="key">The line is your glucose. The shaded band is 70 to 180. Hatched areas are below 70. Along the top: dots are meals, diamonds are prednisone, triangles are insulin.</p></details></div>`;
+  h+=`<div class="sec" id="sitesec"></div>`;
+  h+=`<div class="sec"><h3 class="h3">Medicines</h3><ul class="list">`+o.medications.map(m=>`<li><span class="nm">${esc(m.name)}</span><span class="dim">${esc([m.dose,m.schedule].filter(Boolean).join(" · "))}</span></li>`).join("")+`</ul></div>`;
+  h+=`<div class="sec"><h3 class="h3">Journal</h3>`+(o.journal.length?`<ul class="list">`+o.journal.map(j=>`<li><span class="dim">${fmtD(j.date)}</span>${esc(j.text)}</li>`).join("")+`</ul>`:`<p class="sub">No entries yet.</p>`);
+  h+=`<form class="jform" id="jform"><label for="jtext">Add a note or symptom</label><textarea id="jtext" maxlength="2000"></textarea><button class="btn quiet" type="submit">Save note</button></form></div>`;
+  h+=`<div class="sec"><h3 class="h3">Reminders</h3>`+(o.reminders.length?`<ul class="list">`+o.reminders.map(r=>`<li><span class="nm">${esc(r.title)}</span><span class="dim">${esc(r.due)}${r.repeat?" · repeats "+esc(r.repeat):""}</span></li>`).join("")+`</ul>`
+      :`<p class="sub">None yet. You can say “Remind me to check my pen every night at nine.”</p>`)+`</div>`;
+  $("#overview").innerHTML=h;
+  $("#overview").onclick=e=>{ const b=e.target.closest(".day"); if(b) selectDay(b.dataset.date); };
+  $("#jform").addEventListener("submit", async e=>{ e.preventDefault(); const t=$("#jtext").value.trim(); if(!t) return;
+    await api("/api/journal",{method:"POST",body:JSON.stringify({body:t,prompt:"Added from the journal box"})}); await loadOverview(true); });
+}
+let redraw=null; window.addEventListener("resize",()=>{ clearTimeout(redraw); redraw=setTimeout(()=>{ if(S.day&&$("#daybox")) $("#daybox").innerHTML=chartSvg(S.day); },150); });
+async function renderSites(){
+  try{ const r=await api("/api/sites"), box=$("#sitesec"); if(!box) return; S.sites={names:r.names};
+    box.innerHTML=`<h3 class="h3">Injection sites</h3>`+(r.overuse?`<p class="warn">${esc(r.overuse.say)}</p>`:"")+
+      `<p>Next: <strong>${esc(r.suggested_next.where)}</strong></p>`+
+      (r.recent.length?`<ul class="list">${r.recent.slice(0,5).map(x=>`<li><span class="nm">${esc(x.where.replace(/^the /,"").replace(/^./,c=>c.toUpperCase()))}</span><span class="dim">${fmtD(x.ts)}</span></li>`).join("")}</ul>`:"")+
+      `<p style="margin-top:14px"><button class="btn quiet" type="button" id="coachbtn">Guide my injection</button></p>`;
+    $("#coachbtn").onclick=()=>openCoach(); }catch(e){}
+}
+async function selectDay(d){
+  S.selected=d; document.querySelectorAll(".day").forEach(b=>b.setAttribute("aria-pressed", b.dataset.date===d));
+  try{ const day=await api("/api/day?date="+d); S.day=day; $("#daytitle").textContent=fmtD(d);
+    $("#daybox").innerHTML=chartSvg(day); $("#daytext").textContent=dayText(day); }
+  catch(e){ $("#daybox").innerHTML=`<p class="err">${esc(e.message)}</p>`; }
+}
+async function loadOverview(keep){
+  try{ S.overview=await api("/api/overview"); const o=S.overview;
+    if(store.get("rate",null)===null) S.rate=parseFloat(o.profile.tts_rate||"0.95"), syncRate();
+    if(!keep||!S.selected) S.selected=(o.pattern?o.pattern.from:o.days[o.days.length-1].date);
+    renderOverview(); renderSites(); await selectDay(S.selected); buildWelcome(); }
+  catch(e){ $("#overview").innerHTML=`<p class="err">${esc(e.message)}</p>`; }
+}
+
+/* ---------- ask ---------- */
+function mdLite(text){
+  const lines=esc(text).split("\n"); let out="", list=null; const close=()=>{ if(list){ out+=`</${list}>`; list=null; } };
+  for(const raw of lines){ let l=raw.trim(); if(!l){ close(); continue; } let m;
+    if((m=l.match(/^#{1,4}\s+(.*)/))){ close(); out+=`<h4>${m[1]}</h4>`; }
+    else if((m=l.match(/^[-*•]\s+(.*)/))){ if(list!=="ul"){close(); out+="<ul>"; list="ul";} out+=`<li>${m[1]}</li>`; }
+    else if((m=l.match(/^\d+[.)]\s*(.*)/))&&m[1]){ if(list!=="ol"){close(); out+="<ol>"; list="ol";} out+=`<li>${m[1]}</li>`; }
+    else if(/^\d+[.)]$/.test(l)){ continue; }
+    else { close(); out+=`<p>${l}</p>`; } }
+  close(); return out.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/(^|[^*\w])\*([^*\n]+?)\*(?!\w)/g,"$1<em>$2</em>");
+}
+function answerHtml(r){
+  const {clean, ids}=stripCites(r.text), good=ids.filter(c=>r.citations[c]), bad=ids.length-good.length;
+  let h=`<div class="a">${mdLite(clean)}</div><div class="meta"><div class="row"><button class="linkbtn" type="button" data-read>Read again</button>`;
+  if(good.length) h+=`</div><details class="sources"><summary>From your records (${good.length})</summary><ul>${good.map(c=>`<li><button class="linkbtn" type="button" data-cite="${c}">${esc(prettyDates(r.citations[c]))}</button></li>`).join("")}</ul></details>`;
+  else h+=`</div>`;
+  if(bad) h+=`<p class="warn">${bad===1?"One source":bad+" sources"} the answer mentioned could not be found in your records. Treat those parts with care.</p>`;
+  if(r.guard && r.guard.dose_advice_removed) h+=`<p class="note">Part of this answer sounded like dose advice and was removed. Prime does not advise on doses.</p>`;
+  return h+`</div>`;
+}
+async function ask(q){
+  $("#welcome")?.remove(); stopSpeaking(); setView("ask");
+  const turn=document.createElement("article"); turn.className="turn";
+  turn.innerHTML=`<h2 class="q"><span class="sr">You asked: </span>${esc(q)}</h2><div class="ans" aria-busy="true"><p class="thinking">Looking at your records…</p></div>`;
+  $("#turns").appendChild(turn); turn.scrollIntoView({block:"start"}); $("#send").disabled=true;
+  const box=turn.querySelector(".ans");
+  try{
+    const r=await api("/api/chat",{method:"POST",body:JSON.stringify({message:q})});
+    box.innerHTML=answerHtml(r); box.removeAttribute("aria-busy");
+    box.querySelector("[data-read]").onclick=()=>{ const was=S.aloud; S.aloud=true; speak(r.text); S.aloud=was; };
+    $("#remain").textContent = r.remaining<=5 ? (r.remaining===1?"1 question left in this demo":r.remaining+" questions left in this demo") : "";
+    if(S.hands) voiceStatus("Reading the answer. Press Escape to stop."); speak(r.text, () => { if(S.hands) listen(); });
+  }catch(e){ box.innerHTML=`<p class="err">${esc(e.message)}</p>`; box.removeAttribute("aria-busy"); if(S.hands){ stopHandsFree("Voice off: "+e.message); speak(e.message); } }
+  $("#send").disabled=false; loadOverview(true);
+}
+function buildWelcome(){
+  const o=S.overview; if(!$("#welcome")) return;
+  $("#alert").innerHTML = o.pattern ? alertHtml(o.pattern, "a") : "";
+  const st=[];
+  const p=o.days.find(d=>d.steroid_mg_today>=30); if(p) st.push(`Why was I so high on the afternoon of ${fmtD(p.date)}?`);
+  if(o.highlights.artifact) st.push(`Was the low around 3 AM on ${fmtD(o.highlights.artifact.date)} real?`);
+  else if(o.highlights.deepest_low) st.push(`Why was I low around ${fmtT(o.highlights.deepest_low.time)} on ${fmtD(o.highlights.deepest_low.date)}?`);
+  st.push("Where should I inject today?", "Give me a summary for my clinic visit.");
+  $("#starters").innerHTML=st.map(s=>`<li><button class="starter" type="button"><span>${esc(s)}</span><span class="arr" aria-hidden="true">→</span></button></li>`).join("");
+}
+$("#starters").addEventListener("click", e=>{ const b=e.target.closest(".starter"); if(b) ask(b.firstElementChild.textContent); });
+$("#form").addEventListener("submit", e=>{ e.preventDefault(); const q=$("#q").value.trim(); if(!q||$("#send").disabled) return; $("#q").value=""; $("#q").style.height=""; ask(q); });
+$("#q").addEventListener("keydown", e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); $("#form").requestSubmit(); }});
+$("#q").addEventListener("input", e=>{ e.target.style.height="auto"; e.target.style.height=Math.min(e.target.scrollHeight,170)+"px"; });
+
+/* ---------- records ---------- */
+document.addEventListener("click", async e=>{
+  const b=e.target.closest("[data-cite]"); if(!b) return;
+  try{ const r=await api("/api/record/"+encodeURIComponent(b.dataset.cite));
+    const title=r.title||r.display||r.name||r.label||(r.kind==="day"?"Glucose, "+fmtD(r.date):r.kind==="journal"?"Journal entry":"Record");
+    const skip=["cite","id","kind","title","text"]; if(r.kind==="src"||r.title){ skip.push("url"); }
+    const rows=Object.entries(r).filter(([k])=>!skip.includes(k)).map(([k,v])=>`<dt>${esc(k.replace(/_/g," "))}</dt><dd>${esc(prettyDates(v))}</dd>`).join("");
+    $("#recbody").innerHTML=`<h2 id="rectitle">${esc(prettyDates(title))}</h2>${r.text?`<p>${esc(r.text)}</p>`:""}<dl>${rows}</dl>${r.url?`<p><a href="${esc(r.url)}" target="_blank" rel="noopener">Open the source</a></p>`:""}`;
+    $("#rec").showModal(); }catch(err){ alert(err.message); }
+});
+document.addEventListener("click", e=>{ const c=e.target.closest("[data-close]"); if(c) c.closest("dialog").close(); });
+
+/* ---------- privacy ledger ---------- */
+function phMark(s){ return esc(s).replace(/\[(PATIENT|DOB|MRN|PHONE|EMAIL|SSN)\]/g,'<span class="ph">[$1]</span>'); }
+function msgHtml(m, purpose){
+  let body=""; if(m.tool_calls&&m.tool_calls.length) body+="asked for: "+m.tool_calls.map(t=>t.function.name).join(", ");
+  const parts=Array.isArray(m.content)?m.content:null;
+  const c=typeof m.content==="string"?m.content:parts?parts.filter(p=>p.type==="text").map(p=>p.text).join("\n"):JSON.stringify(m.content);
+  if(parts) body+=parts.filter(p=>p.type!=="text").map(p=>`<strong>Sent: ${esc(p.note||"an image")}</strong>\n`).join("");
+  if(c){ if(m.role==="system") return `<div class="m"><span class="role">Instructions to the model</span><details><summary>${c.length.toLocaleString()} characters</summary>${phMark(c)}</details></div>`;
+    if((m.role==="tool"&&c.length>260)||c.length>600) body+=`<details><summary>${phMark(c.slice(0,150))}…</summary>${phMark(c)}</details>`; else body+=(body?"\n":"")+phMark(c); }
+  const role=purpose==="speech"?"Your voice":String(purpose).startsWith("pen-")?"Your pen-check photos":{user:"Your question",assistant:"The model",tool:"Data from your device"}[m.role]||m.role;
+  return `<div class="m"><span class="role">${esc(role)}</span>${body}</div>`;
+}
+async function loadLedger(){
+  try{ const {calls}=await api("/api/audit?n=3"); if(!calls.length) return;
+    $("#ledger").innerHTML=(S.sentFrames.length?`<h3 class="h3">Pen-check photos sent this visit</h3><div class="frames">${S.sentFrames.map((u,k)=>`<img src="${u}" alt="Frame ${k+1} that was sent">`).join("")}</div>`:"")+calls.map((c,i)=>{ const reps=Object.entries(c.replaced).map(([k,v])=>`<span class="ph">[${k}]</span> ×${v}`).join(" ");
+      return `<details class="call"${i===0?" open":""}><summary>${c.purpose==="speech"?"Voice clip":c.purpose.startsWith("pen-")?"Pen-check photos":i===0?"Latest question":"Earlier question"}</summary>
+        <p class="dim">${esc(c.model)} · ${c.chars.toLocaleString()} characters · ${reps?"Replaced before sending: "+reps:"No identifiers in this request"}</p>
+        ${c.messages.slice(i===0?-4:-2).map(m=>msgHtml(m,c.purpose)).join("")}</details>`; }).join("")
+      +`<p class="sub" style="margin-top:20px">Full requests are kept only in a local log on this device.</p>`; }catch(e){}
+}
+
+/* ---------- pen check (works with NO model call) ---------- */
+async function penPicker(){
+  const r=await api("/api/pens"); if(!r.pens.length) return "";
+  const opt=p=>`<option value="${p.id}"${p.id===r.chosen?" selected":""}>${esc(p.name)}</option>`, mine=r.pens.filter(p=>p.matches),
+    rest=r.pens.filter(p=>!p.matches&&p.family!=="glp1"), glp=r.pens.filter(p=>!p.matches&&p.family==="glp1");
+  return `<div class="setrow"><label class="lbl" for="penpick">Your pen<span class="hintx">The steps follow your pen's own instructions.</span></label>
+    <select id="penpick"><option value="">Not sure / other pen</option>${mine.length?`<optgroup label="Matches your records">${mine.map(opt).join("")}</optgroup>`:""}<optgroup label="Insulin pens">${rest.map(opt).join("")}</optgroup><optgroup label="GLP-1 pens (not insulin)">${glp.map(opt).join("")}</optgroup></select></div>`;
+}
+async function penCheck(){
+  stopSpeaking(); stopHandsFree(); const dlg=$("#pen");
+  let data, picker=""; try{ [data, picker]=await Promise.all([api("/api/pen-check"), penPicker().catch(()=>"")]); }catch(e){ alert(e.message); return; }
+  const steps=data.steps.map(s=>s.say); let n=steps.length, i=0;
+  const draw=()=>{ const last=i>=n;
+    $("#penbody").innerHTML=`<div class="dhead"><h2 id="pentitle">Pen check</h2><button class="close" type="button" id="px">Close</button></div><div class="count">${last?"Done":"Step "+(i+1)+" of "+n}</div>`+
+      (i===0&&picker?picker:"")+(last?`<div class="step">Before you finish, answer out loud:</div><ul>${data.teach_back_questions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul><p>${esc(data.reminder)}</p>`
+           :`<div class="step" aria-live="assertive">${esc(steps[i])}</div>`)+
+      `<div class="dfoot">${i>0?`<button class="btn quiet" id="pb" type="button">Back</button>`:""}<button class="btn quiet" id="pr" type="button">Repeat</button>${!last&&data.steps[i].coach?`<button class="btn quiet" id="pc" type="button">Guide me with the camera</button>`:""}${!last&&data.steps[i].check?`<button class="btn quiet" id="pv" type="button">Check with camera</button>`:""}<button class="btn" id="pn" type="button" autofocus>${last?"Finish":"Next"}</button></div>`;
+    $("#pb")&&($("#pb").onclick=()=>{ i--; draw(); }); $("#pr").onclick=()=>speak(last?data.teach_back_questions.join(" "):steps[i]);
+    $("#pn").onclick=()=>{ if(last){ stopSpeaking(); dlg.close(); } else { i++; draw(); } }; $("#px").onclick=()=>{ stopSpeaking(); dlg.close(); };
+    $("#pv")&&($("#pv").onclick=()=>openCheck(data.steps[i].check));
+    $("#penpick")&&($("#penpick").onchange=async e=>{ const r=await api("/api/pen",{method:"POST",body:JSON.stringify({pen:e.target.value||null})});
+      speak(r.readback); const again=await api("/api/pen-check"); data.steps=again.steps; data.pen=again.pen; steps.splice(0,steps.length,...again.steps.map(x=>x.say)); n=steps.length; i=0;
+      picker=await penPicker().catch(()=>""); draw(); });
+    $("#pc")&&($("#pc").onclick=()=>openCoach(()=>{ const k=steps.findIndex((t,n)=>n>i && /^Inject/.test(t)); i=k>=0?k+1:i+1; draw(); }));
+    speak(last?"Done. Before you finish, answer out loud. "+data.teach_back_questions.join(" "):steps[i]); $("#pn").focus(); };
+  draw(); dlg.showModal();
+}
+$("#penbtn").onclick=penCheck;
+
+/* ---------- injection coach ----------
+   Plan: today's spot comes from the person's own site log (rotation and overuse are decided on the server, in code).
+   Camera: MediaPipe pose and hand tracking run IN THE BROWSER. Frames never leave the device and nothing is recorded.
+   It finds the shoulders, hips and knees, estimates the belly button, and guides the hand holding the pen to the spot
+   by voice and tone. The person says "go" (or presses the button) once the needle is in; Prime counts to ten. */
+
+/* Geometry, pure functions of pose landmarks (MediaPipe indices) in pixels. Units are hip-widths; u is toward the
+   PERSON's left, v is up. Estimates are rough, which is why every target keeps a wide margin from the navel. */
+const GEO = {
+  NAVEL_UP: .22,                    // the navel sits about a fifth of the way from the hip joints to the shoulders
+  NAVEL_KEEP: .25,                  // two inches is about a fifth of the hip-joint width; keep a margin
+  NEAR: .13,                        // close enough to the spot
+  BELLY: {"belly-upper-right":[-.35,.25], "belly-lower-right":[-.35,-.2], "belly-lower-left":[.35,-.2], "belly-upper-left":[.35,.25]},
+  frame(lm, W, H){
+    const P=i=>lm[i]&&(lm[i].visibility??1)>.5?[lm[i].x*W, lm[i].y*H]:null;
+    const ls=P(11), rs=P(12), lh=P(23), rh=P(24); if(!ls||!rs||!lh||!rh) return null;
+    const mid=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2], hip=mid(lh,rh), sh=mid(ls,rs);
+    const hw=Math.hypot(lh[0]-rh[0], lh[1]-rh[1]); if(hw<10) return null;
+    const ex=[(lh[0]-rh[0])/hw, (lh[1]-rh[1])/hw], tl=Math.hypot(sh[0]-hip[0], sh[1]-hip[1]), ey=[(sh[0]-hip[0])/tl, (sh[1]-hip[1])/tl];
+    return {hw, ex, ey, navel:[hip[0]+GEO.NAVEL_UP*(sh[0]-hip[0]), hip[1]+GEO.NAVEL_UP*(sh[1]-hip[1])], lh, rh, lk:P(25), rk:P(26)};
+  },
+  toPerson(F, p){                   // solve p - navel = hw*(u*ex + v*ey)
+    const dx=(p[0]-F.navel[0])/F.hw, dy=(p[1]-F.navel[1])/F.hw, det=F.ex[0]*F.ey[1]-F.ex[1]*F.ey[0];
+    return [(dx*F.ey[1]-dy*F.ey[0])/det, (F.ex[0]*dy-F.ex[1]*dx)/det];
+  },
+  toPixels(F, [u,v]){ return [F.navel[0]+F.hw*(u*F.ex[0]+v*F.ey[0]), F.navel[1]+F.hw*(u*F.ex[1]+v*F.ey[1])]; },
+  target(F, zone){
+    if(GEO.BELLY[zone]) return GEO.BELLY[zone];
+    const left=zone==="thigh-left", hip=left?F.lh:F.rh, knee=left?F.lk:F.rk; if(!knee) return null;
+    const mid=[hip[0]+.45*(knee[0]-hip[0]), hip[1]+.45*(knee[1]-hip[1])], [u,v]=GEO.toPerson(F, mid);
+    return [u+(left?.12:-.12), v];   // front of the thigh, toward the outside
+  },
+  guide(hand, tgt, zone){           // hand and tgt in person units -> what to say
+    const du=tgt[0]-hand[0], dv=tgt[1]-hand[1], dist=Math.hypot(du,dv), out={dist, du, dv, ok:false};
+    if(dist<GEO.NEAR) return {...out, ok:true, msg:null};
+    if(zone.startsWith("belly") && Math.hypot(...hand)<GEO.NAVEL_KEEP) return {...out, msg:"You are close to your belly button. Move your hand farther from it."};
+    const bit=dist<.3?" a little":"";
+    const msg=Math.abs(du)>Math.abs(dv) ? `Move your hand${bit} to your ${du>0?"left":"right"}.` : `Move your hand${bit} ${dv>0?"up":"down"}.`;
+    return {...out, msg};
+  },
+};
+
+const COACH={stream:null, timer:0, pose:null, hand:null, stage:"off", zone:null, plan:null, said:"", saidAt:0, trail:[], atSince:0,
+  count:0, countTimer:0, audio:null, nextBeep:0, rec:null, onDone:null, lastHand:null, missingSince:0};
+const MP="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+async function coachModels(handsOnly){
+  if(COACH.hand && (handsOnly || COACH.pose)) return;
+  const mp=await import(MP+"/vision_bundle.mjs"), fs=await mp.FilesetResolver.forVisionTasks(MP+"/wasm");
+  const make=async(K, url, extra)=>{ for(const delegate of ["GPU","CPU"]){ try{ return await K.createFromOptions(fs,{baseOptions:{modelAssetPath:url, delegate}, runningMode:"VIDEO", ...extra}); }catch(e){ if(delegate==="CPU") throw e; } } };
+  if(!COACH.hand) COACH.hand=await make(mp.HandLandmarker,"https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",{numHands:2});
+  if(!handsOnly && !COACH.pose) COACH.pose=await make(mp.PoseLandmarker,"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",{numPoses:1});
+}
+function coachTone(freq, dur, pan=0){ const a=COACH.audio; if(!a) return; const o=a.createOscillator(), g=a.createGain(), p=a.createStereoPanner?a.createStereoPanner():null;
+  o.frequency.value=freq; g.gain.setValueAtTime(.06,a.currentTime); g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+dur);
+  o.connect(g); if(p){ p.pan.value=pan; g.connect(p); p.connect(a.destination); } else g.connect(a.destination); o.start(); o.stop(a.currentTime+dur); }
+/* A new instruction at most every 2 s; the same one again every 5 s while it still applies. */
+function coachSay(t, force){ const now=performance.now(); if(!force && now-COACH.saidAt<(t===COACH.said?5000:2000)) return;
+  COACH.said=t; COACH.saidAt=now; $("#coachsay").textContent=t; speak(t); }
+function zoneName(z){ return (S.sites?.names||{})[z] || z; }
+function drawCoach(F, tgt, handPx, ok){
+  const c=$("#coachdraw"), v=$("#coachvideo"); c.width=v.clientWidth; c.height=v.clientHeight; const g=c.getContext("2d"); g.clearRect(0,0,c.width,c.height);
+  if(!F||!v.videoWidth) return; const k=Math.min(c.width/v.videoWidth, c.height/v.videoHeight), ox=(c.width-v.videoWidth*k)/2, oy=(c.height-v.videoHeight*k)/2, P=([x,y])=>[ox+x*k, oy+y*k];
+  const css=n=>getComputedStyle(document.body).getPropertyValue(n);
+  const [nx,ny]=P(F.navel); g.strokeStyle=css("--alert"); g.lineWidth=3; g.setLineDash([6,5]); g.beginPath(); g.arc(nx,ny,GEO.NAVEL_KEEP*F.hw*k,0,7); g.stroke(); g.setLineDash([]);
+  if(tgt){ const [tx,ty]=P(GEO.toPixels(F,tgt)); g.strokeStyle=ok?css("--ok"):css("--focus"); g.lineWidth=5; g.beginPath(); g.arc(tx,ty,GEO.NEAR*F.hw*k,0,7); g.stroke(); }
+  if(handPx){ const [hx,hy]=P(handPx); g.fillStyle=css("--accent"); g.beginPath(); g.arc(hx,hy,8,0,7); g.fill(); }
+}
+function coachTick(){
+  if(COACH.stage==="off"||COACH.stage==="done") return;
+  const v=$("#coachvideo"), now=performance.now();
+  if(v.readyState<2||!COACH.pose){ COACH.timer=setTimeout(coachTick,120); return; }
+  const W=v.videoWidth, H=v.videoHeight, pr=COACH.pose.detectForVideo(v, now), hr=COACH.hand.detectForVideo(v, now+1);
+  const F=pr.landmarks?.[0]?GEO.frame(pr.landmarks[0],W,H):null;
+  let tgt=null, handPx=null, g=null;
+  if(F){ tgt=GEO.target(F, COACH.zone);
+    // The hand holding the pen: thumb tip and index tip, whichever hand is nearer the spot.
+    const hands=(hr.landmarks||[]).map(h=>[(h[4].x+h[8].x)/2*W, (h[4].y+h[8].y)/2*H]);
+    if(tgt && hands.length){ handPx=hands.map(p=>[p, GEO.toPerson(F,p)]).sort((a,b)=>Math.hypot(a[1][0]-tgt[0],a[1][1]-tgt[1])-Math.hypot(b[1][0]-tgt[0],b[1][1]-tgt[1]))[0];
+      g=GEO.guide(handPx[1], tgt, COACH.zone); COACH.lastHand=handPx[1]; handPx=handPx[0]; }
+  }
+  drawCoach(F, tgt, handPx, g&&g.ok);
+  if(COACH.stage==="counting"){ COACH.timer=setTimeout(coachTick,100); if(g && g.dist>GEO.NEAR*2.5) coachMovedEarly(); return; }
+  if(!F){ coachSay(COACH.zone.startsWith("thigh")?"I can't see you yet. Prop the phone up and move back until I can see from your shoulders to your knees."
+                                                 :"I can't see you yet. Prop the phone up and move back until I can see from your shoulders to your hips."); }
+  else if(!tgt){ coachSay("I can't see your knees. Move back a little so I can see your thighs."); }
+  else if(!g){ coachSay(`Now bring the hand holding the pen to ${zoneName(COACH.zone)}.`); }
+  else if(!g.ok){ COACH.atSince=0; coachSay(g.msg); }
+  else {
+    COACH.trail.push(handPx); if(COACH.trail.length>8) COACH.trail.shift();
+    COACH.atSince=COACH.atSince||now;
+    if(COACH.stage==="find" && now-COACH.atSince>1000){
+      COACH.stage="ready"; coachListen();
+      coachSay(`That's ${zoneName(COACH.zone)}. Feel the skin there. If it is not lumpy, firm, sore or bruised, put the needle in and press the button all the way. Then say go, or press Start the count.`, true);
+    }
+  }
+  // Sound: faster, higher beeps as the hand nears the spot, panned toward the way to move. A slow tick while searching.
+  if(now>=COACH.nextBeep && COACH.stage==="find"){
+    if(g){ const close=Math.max(0,1-g.dist/.8); coachTone(440+520*close,.07, Math.abs(g.du)>Math.abs(g.dv)?(g.du>0?-.7:.7):0); COACH.nextBeep=now+(g.ok?120:Math.max(140,700-560*close)); }
+    else { coachTone(220,.05); COACH.nextBeep=now+1200; }
+  }
+  COACH.timer=setTimeout(coachTick,90);
+}
+function coachListen(){                 // "go" starts the count, hands-free
+  if(!SR||COACH.rec) return; const r=new SR(); r.lang="en-US"; r.continuous=true; r.interimResults=false; COACH.rec=r;
+  r.onresult=e=>{ const t=[...e.results].slice(e.resultIndex).map(x=>x[0].transcript).join(" "); if(/\b(go|now|start|ready|count|done)\b/i.test(t)) coachCount(); };
+  r.onend=()=>{ COACH.rec=null; if(COACH.stage==="ready") coachListen(); }; r.onerror=()=>{}; try{ r.start(); }catch(e){ COACH.rec=null; }
+}
+function coachCount(){
+  if(COACH.stage==="counting"||COACH.stage==="done") return;
+  COACH.stage="counting"; COACH.count=0; if(COACH.rec){ const r=COACH.rec; COACH.rec=null; r.abort(); }
+  $("#coachgo").textContent="Counting…"; $("#coachgo").disabled=true;
+  coachSay("Hold still. Counting.", true);
+  const N=COACH.hold||10;
+  const next=()=>{ COACH.count++; if(COACH.count<=N){ $("#coachsay").textContent=String(COACH.count); speak(String(COACH.count)); coachTone(660,.05); }
+    if(COACH.count>=N){ coachFinish(true); return; } COACH.countTimer=setTimeout(next,1000); };
+  COACH.countTimer=setTimeout(next,1200);
+}
+function coachMovedEarly(){
+  if(COACH.stage!=="counting") return; clearTimeout(COACH.countTimer);
+  coachFinish(false);
+}
+async function coachFinish(full){
+  COACH.stage="done"; clearTimeout(COACH.countTimer); coachStopCamera(); $("#coachgo").disabled=false; $("#coachgo").textContent="Close";
+  const N=COACH.hold||10;
+  let msg=full?`${N}. ${COACH.release||"You can take the needle out now."}`
+              :`You moved at ${COACH.count}, before ${N}. If you are not sure the full dose went in, don't guess. Ask your care team or pharmacist.`;
+  try{ const r=await api("/api/sites",{method:"POST",body:JSON.stringify({zone:COACH.zone})}); msg+=" "+r.readback; }catch(e){}
+  $("#coachsay").textContent=msg; speak(msg); loadOverview(true);
+}
+function coachStopCamera(){ clearTimeout(COACH.timer); if(COACH.stream){ COACH.stream.getTracks().forEach(t=>t.stop()); COACH.stream=null; }
+  if(COACH.rec){ const r=COACH.rec; COACH.rec=null; r.abort(); } const c=$("#coachdraw"); c.getContext("2d").clearRect(0,0,c.width,c.height); }
+async function openCoach(onDone){
+  stopSpeaking(); stopHandsFree(); clearTimeout(COACH.countTimer); coachStopCamera(); COACH.onDone=onDone||null;
+  Object.assign(COACH,{stage:"plan", said:"", saidAt:0, trail:[], atSince:0, count:0, nextBeep:0});
+  $("#coachgo").textContent="Start the count"; $("#coachgo").disabled=false; $("#coachview").hidden=false; $("#coachsay").textContent="";
+  const dlg=$("#coach"); if(!dlg.open) dlg.showModal();
+  try{ COACH.audio=COACH.audio||new (window.AudioContext||window.webkitAudioContext)(); COACH.audio.resume(); }catch(e){}
+  const modelsReady=coachModels().catch(e=>{ COACH.modelError=e; });        // load while the plan is spoken
+  api("/api/pen-check").then(d=>{ COACH.hold=d.pen?.hold_seconds||10; COACH.release=d.pen?.release||"You can take the needle out now."; }).catch(()=>{ COACH.hold=10; });
+  let plan; try{ plan=await api("/api/sites"); }catch(e){ $("#coachplan").innerHTML=`<p class="err">${esc(e.message)}</p>`; return; }
+  COACH.plan=plan; COACH.zone=plan.suggested_next.zone; S.sites={names:plan.names};
+  $("#coachzone").innerHTML=Object.entries(plan.names).map(([z,n])=>`<option value="${z}"${z===COACH.zone?" selected":""}>${esc(n.replace(/^the /,"").replace(/^./,c=>c.toUpperCase()))}</option>`).join("");
+  const last=plan.recent[0];
+  const say=[plan.overuse?plan.overuse.say:"", `Today, use ${plan.suggested_next.where}.`, last?`Last time was ${last.where}.`:"", ...plan.checks.map(c=>c.say)].filter(Boolean);
+  $("#coachplan").innerHTML=(plan.overuse?`<p class="warn">${esc(plan.overuse.say)}</p>`:"")+`<p class="spot">Today: ${esc(plan.suggested_next.where)}</p>`+
+    (last?`<p class="note">Last time: ${esc(last.where)}</p>`:"")+`<ul>${plan.checks.map(c=>`<li>${esc(c.say)}</li>`).join("")}</ul>`;
+  speak(say.join(" "));
+  if(!navigator.mediaDevices?.getUserMedia){ $("#coachview").hidden=true; coachSay("The camera isn't available here. When the needle is in, press Start the count.", true); COACH.stage="ready"; return; }
+  try{
+    COACH.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user", width:{ideal:1280}, height:{ideal:720}}, audio:false});
+    const v=$("#coachvideo"); v.srcObject=COACH.stream; await v.play();
+    await modelsReady; if(COACH.modelError) throw COACH.modelError;
+    if(COACH.stage==="plan") COACH.stage="find"; coachTick();
+  }catch(e){ coachStopCamera(); $("#coachview").hidden=true; if(COACH.stage==="plan") COACH.stage="ready";
+    coachSay(e.name==="NotAllowedError"?"The camera is blocked, so I can't guide your hand. You can still use the count: when the needle is in, press Start the count."
+            :"The camera guide couldn't start. You can still use the count: when the needle is in, press Start the count.", true); }
+}
+$("#coachzone").onchange=e=>{ COACH.zone=e.target.value; COACH.atSince=0; if(COACH.stage==="ready") COACH.stage="find"; coachSay(`Okay, ${zoneName(COACH.zone)}.`, true); };
+$("#coachgo").onclick=()=>{ if(COACH.stage==="done") $("#coach").close(); else coachCount(); };
+$("#coachx").onclick=()=>$("#coach").close();
+// The close event arrives a moment after close(); if the coach was reopened meanwhile, leave the new session alone.
+$("#coach").addEventListener("close",()=>{ if($("#coach").open) return; const done=COACH.stage==="done"; COACH.stage="off"; clearTimeout(COACH.countTimer); coachStopCamera(); stopSpeaking(); if(done&&COACH.onDone) COACH.onDone(); });
+document.addEventListener("keydown",e=>{ if(e.key===" " && $("#coach").open && COACH.stage==="ready" && document.activeElement?.tagName!=="SELECT"){ e.preventDefault(); coachCount(); } });
+
+/* ---------- pen-check camera checkpoints (Nemotron-3.5-Super-VL) ----------
+   On the device, hand tracking finds the hands, and every frame is cropped to the hands and the space above them,
+   where the needle points: no face or body is sent. caps: one frame once the hands are still. drop: six frames over
+   three seconds while the person presses the button. One request per check; the sentence Prime says comes from fixed
+   code on the server, never from the model. */
+const VC={stream:null, timer:0, check:null, stage:"off", centers:[], still:0, said:"", saidAt:0, crop:null, frames:[]};
+const VC_SAY={caps:"Hold the pen up in front of the camera, needle end pointing up, about a hand's width away.",
+              drop:"Hold the pen up with the needle pointing up, about a hand's width from the camera.",
+              cap:"Hold the pen up in front of the camera, needle end pointing up, about a hand's width away.",
+              done:"Hold the pen up in front of the camera with its window facing the camera, about a hand's width away."};
+const VC_TITLE={caps:"Check the needle caps", drop:"Check the safety test", cap:"Check the pen cap", done:"Check that it finished"};
+S.sentFrames=[];
+function vcSay(t, force){ const now=performance.now(); if(!force && now-VC.saidAt<(t===VC.said?5000:2000)) return;
+  VC.said=t; VC.saidAt=now; $("#vcsay").textContent=t; speak(t); }
+/* Crop: the hands' box, widened, and extended upward where the needle is (all in video pixels). */
+function vcCrop(hands, W, H){
+  const xs=hands.flat().map(p=>p.x*W), ys=hands.flat().map(p=>p.y*H);
+  const x0=Math.min(...xs), x1=Math.max(...xs), y0=Math.min(...ys), y1=Math.max(...ys), w=x1-x0, h=y1-y0;
+  const side=Math.max(w*2.2, h*2.6, 160), cx=(x0+x1)/2, top=y0-h*1.6;
+  const c={x:Math.max(0,cx-side/2), y:Math.max(0,top), w:side, h:side};
+  c.w=Math.min(c.w, W-c.x); c.h=Math.min(c.h, H-c.y);
+  return {...c, handW:w/W, cx:cx/W, cy:(y0+y1)/2/H, clippedTop:top<-h*.3};
+}
+function vcGrab(c){ const v=$("#vcvideo"), k=Math.min(1,640/Math.max(c.w,c.h)), out=document.createElement("canvas");
+  out.width=Math.round(c.w*k); out.height=Math.round(c.h*k); out.getContext("2d").drawImage(v,c.x,c.y,c.w,c.h,0,0,out.width,out.height);
+  return out.toDataURL("image/jpeg",.82); }
+function vcDraw(c){ const cv=$("#vcdraw"), v=$("#vcvideo"); cv.width=v.clientWidth; cv.height=v.clientHeight; const g=cv.getContext("2d"); g.clearRect(0,0,cv.width,cv.height);
+  if(!c||!v.videoWidth) return; const k=Math.min(cv.width/v.videoWidth, cv.height/v.videoHeight), ox=(cv.width-v.videoWidth*k)/2, oy=(cv.height-v.videoHeight*k)/2;
+  g.strokeStyle=getComputedStyle(document.body).getPropertyValue("--focus"); g.lineWidth=4; g.strokeRect(ox+c.x*k, oy+c.y*k, c.w*k, c.h*k); }
+function vcTick(){
+  if(VC.stage!=="aim") return;
+  const v=$("#vcvideo"), now=performance.now();
+  if(v.readyState<2||!COACH.hand){ VC.timer=setTimeout(vcTick,120); return; }
+  const hands=COACH.hand.detectForVideo(v, now).landmarks||[];
+  if(!hands.length){ VC.crop=null; VC.still=0; vcDraw(null); vcSay("I can't see your hands yet. "+VC_SAY[VC.check]); }
+  else {
+    const c=vcCrop(hands, v.videoWidth, v.videoHeight); VC.crop=c; vcDraw(c);
+    VC.centers.push([c.cx,c.cy]); if(VC.centers.length>6) VC.centers.shift();
+    const steady=VC.centers.length>=5 && Math.max(...VC.centers.map(([x,y])=>Math.hypot(x-c.cx,y-c.cy)))<.02;
+    if(c.handW<.1) { VC.still=0; vcSay("Bring the pen closer to the camera."); }
+    else if(c.handW>.55) { VC.still=0; vcSay("Move the pen a little farther from the camera."); }
+    else if(c.clippedTop) { VC.still=0; vcSay("Move the pen down a little, so I can see the needle end."); }
+    else if(!steady) { VC.still=0; vcSay("Hold still."); }
+    else if(++VC.still>=8){ vcCapture(); return; }
+  }
+  VC.timer=setTimeout(vcTick,90);
+}
+async function vcCapture(){
+  if(VC.stage!=="aim") return; VC.stage="capture"; clearTimeout(VC.timer);
+  const crop=VC.crop||(()=>{ const v=$("#vcvideo"), W=v.videoWidth, H=v.videoHeight; return {x:W*.2,y:H*.05,w:W*.6,h:H*.9}; })();
+  VC.frames=[];
+  if(VC.check==="caps"||VC.check==="cap"){ VC.frames.push(vcGrab(crop)); }
+  else if(VC.check==="done"){ for(let k=0;k<4 && VC.stage==="capture";k++){ VC.frames.push(vcGrab(crop)); await new Promise(r=>setTimeout(r,500)); } }
+  else {
+    vcSay("Now press the button all the way. I'm watching the needle tip.", true);
+    await new Promise(r=>setTimeout(r,1500));
+    for(let k=0;k<6 && VC.stage==="capture";k++){                  // follow the hands while they press
+      const hands=COACH.hand?COACH.hand.detectForVideo($("#vcvideo"), performance.now()).landmarks||[]:[];
+      const v=$("#vcvideo"), c=hands.length?vcCrop(hands, v.videoWidth, v.videoHeight):crop;
+      VC.frames.push(vcGrab(c)); await new Promise(r=>setTimeout(r,500)); }
+  }
+  if(VC.stage!=="capture") return;
+  vcStopCamera(); $("#vcview").hidden=true;
+  vcSay(VC.check==="drop"?"Got it. Looking at the needle tip…":VC.check==="done"?"Got it. Looking at the pen window…":"Got it. Looking at the pen…", true);
+  $("#vcresult").innerHTML=`<div class="frames">${VC.frames.map((u,k)=>`<img src="${u}" alt="Frame ${k+1} that was sent">`).join("")}</div>`;
+  S.sentFrames=VC.frames.slice();
+  try{ const r=await api("/api/pen-frames",{method:"POST",body:JSON.stringify({check:VC.check, frames:VC.frames})});
+    $("#vcresult").innerHTML+=`<p class="${r.status==="ok"?"":"warn"}" style="font-size:1.15rem">${esc(r.say)}</p>`;
+    $("#vcsay").textContent=r.status==="ok"?"Done.":r.status==="fix"?"One thing to fix.":"I couldn't tell."; speak(r.say);
+    if(r.remaining<=5) $("#remain").textContent=r.remaining+" questions left in this demo";
+  }catch(e){ $("#vcresult").innerHTML+=`<p class="err">${esc(e.message)}</p>`; $("#vcsay").textContent="That did not work."; speak(e.message); }
+  VC.stage="done"; $("#vcgo").textContent="Try again"; $("#vcgo").disabled=false;
+}
+function vcStopCamera(){ clearTimeout(VC.timer); if(VC.stream){ VC.stream.getTracks().forEach(t=>t.stop()); VC.stream=null; } vcDraw(null); }
+async function openCheck(check){
+  stopSpeaking(); stopHandsFree(); vcStopCamera();
+  Object.assign(VC,{check, stage:"start", centers:[], still:0, said:"", saidAt:0, crop:null, frames:[]});
+  $("#vctitle").textContent=VC_TITLE[check]||"Camera check";
+  $("#vcresult").innerHTML=""; $("#vcgo").textContent="Take it now"; $("#vcgo").disabled=false; $("#vcview").hidden=false; $("#vcsay").textContent="";
+  const dlg=$("#vcheck"); if(!dlg.open) dlg.showModal();
+  if(!navigator.mediaDevices?.getUserMedia){ $("#vcview").hidden=true; vcSay("The camera isn't available here. Do this step without it, or ask someone to look.", true); VC.stage="done"; return; }
+  const ready=coachModels(true).catch(()=>{});
+  try{
+    VC.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user", width:{ideal:1280}, height:{ideal:720}}, audio:false});
+    const v=$("#vcvideo"); v.srcObject=VC.stream; await v.play();
+    vcSay(VC_SAY[check], true); await ready; if(VC.stage!=="start") return;
+    VC.stage="aim"; vcTick();
+  }catch(e){ vcStopCamera(); $("#vcview").hidden=true; VC.stage="done";
+    vcSay(e.name==="NotAllowedError"?"The camera is blocked. Do this step without it, or ask someone to look.":"The camera couldn't start. Do this step without it, or ask someone to look.", true); }
+}
+$("#vcgo").onclick=()=>{ if(VC.stage==="aim") vcCapture(); else openCheck(VC.check); };
+$("#vcx").onclick=()=>$("#vcheck").close();
+$("#vcheck").addEventListener("close",()=>{ if($("#vcheck").open) return; VC.stage="off"; vcStopCamera(); stopSpeaking(); });
+
+/* ---------- settings (kept in localStorage when allowed) ---------- */
+const store={get(k,d){try{const v=localStorage.getItem("prime_"+k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem("prime_"+k,v)}catch(e){}}};
+function syncRate(){ const sel=$("#rate"); sel.value=[...sel.options].reduce((a,o)=>Math.abs(o.value-S.rate)<Math.abs(a-S.rate)?o.value:a, sel.options[0].value); }
+function applyPrefs(){ document.documentElement.style.setProperty("--scale",S.scale); document.body.classList.toggle("hc",S.hc);
+  $("#contrast").setAttribute("aria-checked",S.hc); $("#aloud").setAttribute("aria-checked",S.aloud); $("#sizeout").textContent=Math.round(S.scale*100)+"%"; }
+const prefersMore = window.matchMedia && matchMedia("(prefers-contrast: more)").matches;
+S.scale=parseFloat(store.get("scale","1")); S.hc=store.get("hc",prefersMore?"1":"0")==="1"; S.aloud=store.get("aloud","1")==="1";
+S.rate=parseFloat(store.get("rate","0.95")); syncRate(); applyPrefs();
+$("#bigger").onclick=()=>{ S.scale=Math.min(2,+(S.scale+0.15).toFixed(2)); store.set("scale",S.scale); applyPrefs(); };
+$("#smaller").onclick=()=>{ S.scale=Math.max(0.85,+(S.scale-0.15).toFixed(2)); store.set("scale",S.scale); applyPrefs(); };
+$("#contrast").onclick=()=>{ S.hc=!S.hc; store.set("hc",S.hc?"1":"0"); applyPrefs(); };
+$("#aloud").onclick=()=>{ S.aloud=!S.aloud; store.set("aloud",S.aloud?"1":"0"); if(!S.aloud) stopSpeaking(); applyPrefs(); };
+$("#rate").onchange=e=>{ S.rate=parseFloat(e.target.value); store.set("rate",S.rate); speak("This is the new speaking speed."); };
+$("#setbtn").onclick=()=>$("#settings").showModal();
+$("#reset").onclick=async()=>{ if(!confirm("Start the demo over? This clears your questions and notes.")) return; await api("/api/reset",{method:"POST"}); location.reload(); };
+
+/* hands-free voice.
+   Tap Talk once: listen, ask, read the answer, listen again. Tap Stop or press Escape to end.
+   Two silent turns in a row also stop it, so the mic is never left open.
+   Speech to text: NVIDIA Nemotron 3 Nano Omni on Nebius when Prime has one configured (the audio goes only there and
+   is not stored); otherwise, or if it can't be reached, the browser's speech recognition (Chrome sends that audio to
+   Google, which Settings says plainly). */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition; let rec=null, silent=0;
+const canRecord=!!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+const MIC={stream:null, ctx:null};
+const serverSpeech=()=>S.asr && canRecord && S.speechPref!=="browser" && !S.asrDown;
+function voiceStatus(t){ $("#vstatus").textContent=t; }
+function beep(){ try{ const a=new (window.AudioContext||window.webkitAudioContext)(), o=a.createOscillator(), g=a.createGain();
+  o.frequency.value=880; g.gain.value=0.08; o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime+0.12); o.onended=()=>a.close(); }catch(e){} }
+function setMic(on){ $("#mic").setAttribute("aria-pressed",on); $("#miclabel").textContent=on?"Stop":"Talk";
+  $("#mic").setAttribute("aria-label",on?"Stop voice":"Talk: ask by voice, hands-free"); }
+function releaseMic(){ if(MIC.stream){ MIC.stream.getTracks().forEach(t=>t.stop()); MIC.stream=null; } }
+function stopHandsFree(msg){ if(!S.hands) return; S.hands=false; silent=0; if(rec){ const r=rec; rec=null; r.abort(); } releaseMic(); setMic(false); voiceStatus(msg||""); }
+function heard(t){ silent=0; voiceStatus("Thinking…"); $("#q").value=t; $("#form").requestSubmit(); }
+function missed(){ if(++silent>=2){ stopHandsFree("Voice off: nothing heard."); speak("Voice off."); } else listen("Didn't catch that. Listening again…"); }
+function listen(msg){
+  if(!S.hands || rec) return;
+  if(serverSpeech()){ listenServer(msg); return; }
+  if(!SR){ stopHandsFree("Voice isn't available in this browser. Type your question instead."); return; }
+  let got=false; rec=new SR(); rec.lang="en-US"; rec.interimResults=false;
+  rec.onresult=e=>{ const t=e.results[0][0].transcript.trim(); if(!t) return; got=true; heard(t); };
+  rec.onerror=e=>{ if(e.error==="not-allowed"||e.error==="service-not-allowed") stopHandsFree("Microphone blocked. Allow it in the browser to use voice."); };
+  rec.onend=()=>{ rec=null; if(!S.hands || got) return; missed(); };
+  rec.start(); beep(); voiceStatus(msg||"Listening… ask your question.");
+}
+/* One spoken question: record until about 1.2 s of quiet after speech (or nothing heard for 7 s, or 20 s in all). */
+function recordUtterance(stream, cancelled){
+  return new Promise(resolve=>{
+    const ctx=MIC.ctx||(MIC.ctx=new (window.AudioContext||window.webkitAudioContext)()); ctx.resume();
+    const src=ctx.createMediaStreamSource(stream), an=ctx.createAnalyser(); an.fftSize=1024; src.connect(an);
+    const buf=new Float32Array(an.fftSize), mr=new MediaRecorder(stream), chunks=[]; mr.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
+    let floor=.005, speaking=false, lastVoice=0, done=false; const t0=performance.now();
+    const finish=ok=>{ if(done) return; done=true; clearInterval(iv); src.disconnect();
+      mr.onstop=()=>resolve(ok&&chunks.length?new Blob(chunks,{type:mr.mimeType}):null); mr.stop(); };
+    mr.start(250);
+    const iv=setInterval(()=>{ if(cancelled()) return finish(false);
+      an.getFloatTimeDomainData(buf); let e=0; for(const v of buf) e+=v*v; const rms=Math.sqrt(e/buf.length), now=performance.now();
+      if(now-t0<300) return;                                // skip the start beep
+      if(rms>Math.max(.015, floor*3)){ speaking=true; lastVoice=now; } else if(!speaking) floor=floor*.95+rms*.05;
+      if(speaking && now-lastVoice>1200) finish(true);
+      else if(!speaking && now-t0>7000) finish(false);
+      else if(now-t0>20000) finish(speaking);
+    },50);
+  });
+}
+/* Recording -> 16 kHz mono 16-bit WAV (Nemotron Omni takes WAV at 8 kHz or more). */
+async function toWav16k(blob){
+  const audio=await MIC.ctx.decodeAudioData(await blob.arrayBuffer());
+  const off=new OfflineAudioContext(1, Math.ceil(audio.duration*16000), 16000), src=off.createBufferSource(); src.buffer=audio; src.connect(off.destination); src.start();
+  const pcm=(await off.startRendering()).getChannelData(0), n=pcm.length, d=new DataView(new ArrayBuffer(44+n*2));
+  const str=(o,t)=>{ for(let k=0;k<t.length;k++) d.setUint8(o+k,t.charCodeAt(k)); };
+  str(0,"RIFF"); d.setUint32(4,36+n*2,true); str(8,"WAVE"); str(12,"fmt "); d.setUint32(16,16,true); d.setUint16(20,1,true); d.setUint16(22,1,true);
+  d.setUint32(24,16000,true); d.setUint32(28,32000,true); d.setUint16(32,2,true); d.setUint16(34,16,true); str(36,"data"); d.setUint32(40,n*2,true);
+  for(let k=0;k<n;k++){ const v=Math.max(-1,Math.min(1,pcm[k])); d.setInt16(44+k*2, v<0?v*0x8000:v*0x7fff, true); }
+  return new Blob([d],{type:"audio/wav"});
+}
+async function listenServer(msg){
+  let cancelled=false; const me={abort(){ cancelled=true; }}; rec=me;
+  try{ if(!MIC.stream?.active) MIC.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1, echoCancellation:true, noiseSuppression:true}}); }
+  catch(e){ rec=null; stopHandsFree("Microphone blocked. Allow it in the browser to use voice."); return; }
+  if(cancelled) return;
+  beep(); voiceStatus(msg||"Listening… ask your question.");
+  const blob=await recordUtterance(MIC.stream, ()=>cancelled);
+  if(cancelled) return;
+  if(!blob){ rec=null; missed(); return; }
+  voiceStatus("Got it. Writing down what you said…");
+  try{
+    const r=await fetch("/api/transcribe",{method:"POST", headers:{"Content-Type":"audio/wav"}, body:await toWav16k(blob)}), d=await r.json().catch(()=>({}));
+    if(cancelled) return; rec=null;
+    if(r.status===429){ stopHandsFree(d.detail); speak(d.detail); return; }
+    if(!r.ok) throw new Error(d.detail||"Speech failed");
+    if(d.text) heard(d.text); else missed();
+  }catch(e){
+    if(cancelled) return; rec=null; S.asrDown=true;           // fall back for the rest of this visit
+    if(SR) listen("Private speech isn't reachable right now, so I'm using the browser's speech. Listening…");
+    else stopHandsFree("Speech isn't reachable right now. Type your question instead.");
+  }
+}
+function syncSpeechUI(){
+  $("#mic").hidden=!(SR || (S.asr && canRecord));
+  $("#speechrow").hidden=!(S.asr && canRecord);
+  $("#speechpref").value=S.speechPref==="browser"?"browser":"server";
+  $("#speechhint").textContent=$("#speechpref").value==="server"?"Your voice goes only to Prime's Nemotron Omni model on Nebius and is not stored."
+                                                               :"In Chrome, the browser sends your voice to Google to turn it into text.";
+}
+$("#speechpref").onchange=e=>{ S.speechPref=e.target.value; store.set("speech",S.speechPref); S.asrDown=false; syncSpeechUI(); };
+S.speechPref=store.get("speech","server");
+fetch("/api/health").then(r=>r.json()).then(h=>{ S.asr=!!h.speech; syncSpeechUI(); }).catch(()=>{});
+syncSpeechUI();
+$("#mic").onclick=()=>{ if(S.hands){ stopSpeaking(); stopHandsFree("Voice off."); return; }
+  stopSpeaking(); S.hands=true; silent=0; setMic(true); listen(); };
+setMic(false);
+loadOverview();
+</script>
+</body>
+</html>
