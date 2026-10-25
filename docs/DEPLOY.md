@@ -110,6 +110,14 @@ nebius ai endpoint delete "$ENDPOINT_ID"                                     # a
 ```
 Or in the console: Serverless AI > Endpoints > the endpoint's menu > Stop. CHECK the `jsonpath` field name with `nebius ai endpoint get "$ENDPOINT_ID" --format json`.
 
+## 3c. Updating the live site (keeps the URL)
+The endpoint runs `prime-demo:live`, and a restart pulls the newest `:live` (tested 2026-10-25: 209acd4 -> 60cc1bc, same URL).
+```bash
+git pull && scripts/deploy_demo.sh      # builds amd64, pushes :live and :<commit>, restarts, waits until /health shows the commit
+```
+Live: https://port8080-z4ar3cyeb3vas3w.tunnel.applications.us-north1.nebius.cloud (`/health` shows `version`).
+In zsh write `${REPO}:live`, not `$REPO:live`: zsh reads `:l` as a "lowercase" modifier (that once pushed `prime-demoive:latest`).
+
 ## 4. URL and smoke test
 ```bash
 ID=$(nebius ai endpoint get-by-name --name prime-demo --format jsonpath='{.metadata.id}')
