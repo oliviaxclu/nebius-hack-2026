@@ -24,7 +24,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
 from . import analysis as A
-from . import cites, db, evidence, pens, speech, synthetic, vision
+from . import cgm, cgm_vision, cites, db, evidence, pens, speech, synthetic, vision, visit_note
+from .cgm_data import CHECKS as CGM_CHECKS
 from .sites import ZONES
 from .agent import EMERGENCY, EMERGENCY_REPLY, Agent
 from .calendar import write_ics
@@ -56,6 +57,15 @@ class FramesIn(BaseModel):
 
 class PenIn(BaseModel):
     pen: str | None = Field(default=None, max_length=60)
+
+
+class CgmIn(BaseModel):
+    cgm: str | None = Field(default=None, max_length=40)
+
+
+class CgmFramesIn(FramesIn):                      # same frame rules as the pen check (JPEG/PNG/WebP data URLs under 1.5 MB), one to three frames
+    check: str = Field(pattern="^(" + "|".join(CGM_CHECKS) + ")$")
+    frames: list[str] = Field(min_length=1, max_length=3)
 
 
 class SiteIn(BaseModel):
@@ -361,6 +371,73 @@ def create_app(settings: Settings | None = None, llm_factory=None, root: Path | 
         obs = vision.parse(raw, body.check)
         no_drop = pens.no_drop_say(dev)                                            # the chosen pen's own retry rule
         return vision.decide(body.check, obs, no_drop, cap_name, done_visual) | {"observed": obs, "remaining": per_session - s.calls}
+
+    # ---------------- CGM sensor check (profiles in cgm_data.py; the model only describes, cgm_vision.decide speaks) ----------------
+    @app.get("/api/cgms")
+    def cgm_list(request: Request, response: Response):
+        return {"chosen": cgm.chosen(sess(request, response).conn), "cgms": cgm.listing()}
+
+    @app.post("/api/cgm")
+    def choose_cgm(body: CgmIn, request: Request, response: Response):
+        r = cgm.choose(sess(request, response).conn, body.cgm)
+        if not r["saved"]:
+            raise HTTPException(422, r["error"])
+        return r
+
+    @app.get("/api/cgm-check")
+    def cgm_check(request: Request, response: Response):
+        """The spoken sensor-application steps for the chosen sensor (needs no model). No sensor chosen -> the general profile."""
+        s = sess(request, response)
+        c = cgm.profile_for(s.conn)
+        last = cgm.last_site(s.conn)
+        return {"cgm": {"id": c["id"], "name": c["name"], "maker": c["maker"], "coverage": c["coverage"], "chosen": cgm.chosen(s.conn) is not None},
+                "steps": cgm.steps(c, last), "site": cgm.next_site(c, last), "after": c["after"], "caveat": c["caveat"],
+                "sources": [{"title": t, "url": u} for t, u in c["sources"]], "checked": c["checked"],
+                "reminder": "These steps are paraphrased from public instructions. Follow the instructions in your own sensor box, and ask your pharmacist or care team to watch you do it once."}
+
+    @app.post("/api/cgm-done")
+    def cgm_done(request: Request, response: Response):
+        s = sess(request, response)
+        return cgm.mark_done(s.conn, cgm.profile_for(s.conn))
+
+    @app.post("/api/cgm-frames")
+    def cgm_frames(body: CgmFramesIn, request: Request, response: Response):
+        """One to three frames of the kit, skin or patch -> one sensor-check answer. The model describes; cgm_vision.decide speaks."""
+        s = sess(request, response)
+        check_budget(s)
+        c = cgm.profile_for(s.conn)
+        prompt = cgm_vision.prompt(body.check, c["keyword"])
+        with s.lock:
+            try:
+                raw = llm_factory(settings, s.conn, Redactor(db.load_identity(s.conn))).vision(
+                    prompt, body.frames, purpose=f"cgm-{body.check}", subject="your sensor kit, skin or patch")
+            except RuntimeError as e:
+                raise HTTPException(503, str(e))
+            except Exception as e:
+                raise HTTPException(502, f"The camera check failed ({type(e).__name__}). Use the step without the camera, and try again in a moment.")
+            spend(s)
+        obs = cgm_vision.parse(raw, body.check)
+        return cgm_vision.decide(body.check, obs, c["name"], c["keyword"]) | {"observed": obs, "remaining": per_session - s.calls}
+
+    @app.post("/api/visit-note")
+    def visit_note_route(request: Request, response: Response):
+        """The clinic visit note. Code computes the summary; Nemotron Ultra writes the note; the chat's guards check it."""
+        s = sess(request, response)
+        win = visit_note.window(s.conn)
+        if not win:
+            raise HTTPException(404, "There is no glucose data on this device yet.")
+        check_budget(s)
+        summary = s.toolbox.visit_summary(*win)
+        with s.lock:
+            try:
+                llm = llm_factory(settings, s.conn, Redactor(db.load_identity(s.conn)))
+                raw = llm.reason(visit_note.messages(summary))
+            except RuntimeError as e:
+                raise HTTPException(503, str(e))
+            except Exception as e:
+                raise HTTPException(502, f"The note could not be written ({type(e).__name__}). Try again in a moment.")
+            spend(s)
+        return visit_note.finish(s.conn, raw) | {"range": list(win), "model": settings.reason_model or settings.model, "remaining": per_session - s.calls}
 
     @app.post("/api/transcribe")
     async def transcribe(request: Request, response: Response):

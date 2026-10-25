@@ -27,6 +27,7 @@ class Settings:
     speech_model: str = ""         # e.g. nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning on a dedicated Nebius endpoint
     speech_base_url: str = ""      # defaults to base_url (Token Factory)
     speech_api_key: str = ""       # a Serverless Endpoint's own token; defaults to api_key
+    reason_model: str = ""         # the largest Nemotron, for the clinic visit note; empty = use `model`
 
     @property
     def db_path(self) -> Path:
@@ -50,4 +51,5 @@ def load_settings() -> Settings:
         speech_model=os.environ.get("PRIME_SPEECH_MODEL", ""),
         speech_base_url=os.environ.get("PRIME_SPEECH_BASE_URL", ""),
         speech_api_key=os.environ.get("PRIME_SPEECH_API_KEY", ""),
+        reason_model=os.environ.get("PRIME_REASON_MODEL", "nvidia/Nemotron-3-Ultra-550b-a55b"),
     )

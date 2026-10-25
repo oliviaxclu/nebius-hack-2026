@@ -2,7 +2,7 @@
 
 **A local-first assistant for people on insulin that explains *why* their glucose did that, notices when the insulin may not have had its usual effect, and is built voice-first for low vision.**
 
-Built for the Nebius × NVIDIA Global AI Hackathon (Personal AI track). Reasoning runs on NVIDIA Nemotron through Nebius Token Factory. Your data stays in one SQLite file on your device.
+Built for the Nebius × NVIDIA Global AI Hackathon (Best Apps and Agents track). Reasoning runs on NVIDIA Nemotron through Nebius Token Factory. Your data stays in one SQLite file on your device.
 
 > **Prime is not a medical device and does not give medical advice.** It never tells anyone how much insulin to take. It turns a person's own data into explanations, questions for their clinician, and a spoken pen-safety check. The demo patient is entirely fictional and the glucose model is a toy; see [docs/DESIGN.md](docs/DESIGN.md) for what is and is not validated.
 
@@ -19,6 +19,8 @@ Devices for diabetes assume sight: reading a dose window, seeing a drop at a nee
 | **Real low or sensor artifact?** | Steep V-shaped drops are flagged as possible compression lows and the user is told to confirm with a fingerstick |
 | **Pen check** | Spoken 9-step routine (two needle caps, safety test, counting clicks, hold time) from patient-education and manufacturer sources, plus teach-back questions; works offline |
 | **Injection coach** | Today's spot from the person's own rotation, a warning when one spot is overused (lumps change absorption), and an optional camera guide: on-device pose and hand tracking (MediaPipe, in the browser) steers the hand to the spot by voice and tone, then counts the ten-second hold. No camera frame leaves the device |
+| **Visit note** | One page for a clinic visit. Code computes every number (`visit_summary`); **Nemotron 3 Ultra**, the largest model, turns that summary into the note: what the data shows, what stands out with the competing explanations, and questions to ask. The same guards as the chat apply: any sentence telling the person to take or change a medicine is replaced, every citation is checked against the local database, and a reply that is cut off or missing a section is shown as an error, never as half a note |
+| **Sensor check** | Spoken steps for putting on a CGM sensor, following the person's own sensor: Dexcom G7 / G6 / Stelo, FreeStyle Libre 2 Plus / 3 / Lingo, Medtronic Simplera Sync in full; Guardian 4, Eversense 365 and "another sensor" in limited form (kit, skin prep, finished patch). Steps are paraphrased from each maker's published instructions, with links. An optional camera check sends one picture to Nemotron-3.5-Super-VL, which only describes it; fixed code decides what Prime says, and a "second check" is never a go-ahead |
 | **Private voice** | Speech-to-text with NVIDIA Nemotron 3 Nano Omni (audio in, text out) on a dedicated Nebius Token Factory endpoint; audio is not stored and Privacy lists each clip. Falls back to the browser's speech recognition |
 | **Dose sanity check** | Logging a dose far above recent doses returns a plain "STOP, confirm with your care team or pharmacist" |
 | **Clinic visit summary** | Glucose summary, lows, dose changes, steroid days, dose-response flags, meal experiments and questions to ask |
@@ -63,7 +65,7 @@ Code computes the numbers; the language model explains them. That keeps statisti
 30 days of 15-minute CGM readings and the context around them, with designed episodes and a ground-truth file the agent never sees: baseline days, meal experiments, a prednisone taper, a **silent delivery failure** (mornings 13–20 high while the log shows the usual dose, then a raised dose that doesn't help), restored delivery, taper-related night lows, and one compression-low artifact. `prime demo --no-failure` makes the counterfactual patient with no failure, which must not be flagged.
 
 ## Layout
-`prime/` package · `tests/` (56) · `prime/evals.py` · `docs/` (DESIGN, TESTING, DEMO_SCRIPT, DEPLOY) · `Dockerfile`
+`prime/` package (CGM profiles in `cgm_data.py`, `cgm.py`, `cgm_vision.py`) · `tests/` · `prime/evals.py` · `docs/` (DESIGN, TESTING, DEMO_SCRIPT, DEPLOY) · `Dockerfile`
 
 ## License
 MIT. The evidence library contains short paraphrases of published sources with links; check each source's terms before redistributing beyond a demo.

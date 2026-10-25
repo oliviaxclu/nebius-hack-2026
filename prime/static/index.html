@@ -216,6 +216,8 @@ select{min-height:48px;border:2px solid var(--line);border-radius:12px;backgroun
     <h1 class="brand">Prime</h1>
     <div class="tools">
       <button class="tbtn" id="penbtn" type="button" aria-haspopup="dialog">Pen check</button>
+      <button class="tbtn" id="cgmbtn" type="button" aria-haspopup="dialog">Sensor check</button>
+      <button class="tbtn" id="vnbtn" type="button" aria-haspopup="dialog">Visit note</button>
       <button class="tbtn" id="setbtn" type="button" aria-haspopup="dialog">Settings</button>
     </div>
   </header>
@@ -295,6 +297,20 @@ select{min-height:48px;border:2px solid var(--line);border-radius:12px;backgroun
 </dialog>
 <dialog id="rec" aria-labelledby="rectitle"><div id="recbody"></div><div class="dfoot"><button class="btn" type="button" data-close>Close</button></div></dialog>
 <dialog id="pen" class="pen" aria-labelledby="pentitle"><div id="penbody"></div></dialog>
+<dialog id="vnote" aria-labelledby="vntitle">
+  <div class="dhead"><h2 id="vntitle">Clinic visit note</h2><button class="close" type="button" data-close>Close</button></div>
+  <p class="note">Your numbers are computed on this device. Nemotron 3 Ultra, the largest model, turns them into a one-page note. Names are replaced before anything is sent.</p>
+  <div id="vnbody" aria-live="polite"></div>
+</dialog>
+<dialog id="cgm" class="pen" aria-labelledby="cgmtitle"><div id="cgmbody"></div></dialog>
+<dialog id="cgmcam" class="cam" aria-labelledby="gctitle">
+  <div class="dhead"><h2 id="gctitle">Camera check</h2><button class="close" type="button" id="gcx">Close</button></div>
+  <p class="note">A picture of this view is sent to check this one step. Keep your face out of it. Nothing is stored.</p>
+  <div class="camview" id="gcview"><video id="gcvideo" playsinline muted aria-hidden="true"></video></div>
+  <p class="step" id="gcsay" role="status" aria-live="assertive"></p>
+  <div id="gcresult"></div>
+  <div class="dfoot"><button class="btn" id="gcgo" type="button">Take it now</button></div>
+</dialog>
 <dialog id="vcheck" class="cam" aria-labelledby="vctitle">
   <div class="dhead"><h2 id="vctitle">Camera check</h2><button class="close" type="button" id="vcx">Close</button></div>
   <p class="note">Only a cropped picture of your hands and pen is sent, to check this one step. Nothing is stored.</p>
@@ -531,13 +547,13 @@ function msgHtml(m, purpose){
   if(parts) body+=parts.filter(p=>p.type!=="text").map(p=>`<strong>Sent: ${esc(p.note||"an image")}</strong>\n`).join("");
   if(c){ if(m.role==="system") return `<div class="m"><span class="role">Instructions to the model</span><details><summary>${c.length.toLocaleString()} characters</summary>${phMark(c)}</details></div>`;
     if((m.role==="tool"&&c.length>260)||c.length>600) body+=`<details><summary>${phMark(c.slice(0,150))}…</summary>${phMark(c)}</details>`; else body+=(body?"\n":"")+phMark(c); }
-  const role=purpose==="speech"?"Your voice":String(purpose).startsWith("pen-")?"Your pen-check photos":{user:"Your question",assistant:"The model",tool:"Data from your device"}[m.role]||m.role;
+  const role=purpose==="speech"?"Your voice":String(purpose).startsWith("pen-")?"Your pen-check photos":String(purpose).startsWith("cgm-")?"Your sensor-check photos":purpose==="visit-note"?"Your visit summary":{user:"Your question",assistant:"The model",tool:"Data from your device"}[m.role]||m.role;
   return `<div class="m"><span class="role">${esc(role)}</span>${body}</div>`;
 }
 async function loadLedger(){
   try{ const {calls}=await api("/api/audit?n=3"); if(!calls.length) return;
-    $("#ledger").innerHTML=(S.sentFrames.length?`<h3 class="h3">Pen-check photos sent this visit</h3><div class="frames">${S.sentFrames.map((u,k)=>`<img src="${u}" alt="Frame ${k+1} that was sent">`).join("")}</div>`:"")+calls.map((c,i)=>{ const reps=Object.entries(c.replaced).map(([k,v])=>`<span class="ph">[${k}]</span> ×${v}`).join(" ");
-      return `<details class="call"${i===0?" open":""}><summary>${c.purpose==="speech"?"Voice clip":c.purpose.startsWith("pen-")?"Pen-check photos":i===0?"Latest question":"Earlier question"}</summary>
+    $("#ledger").innerHTML=(S.sentFrames.length?`<h3 class="h3">Camera-check photos sent this visit</h3><div class="frames">${S.sentFrames.map((u,k)=>`<img src="${u}" alt="Frame ${k+1} that was sent">`).join("")}</div>`:"")+calls.map((c,i)=>{ const reps=Object.entries(c.replaced).map(([k,v])=>`<span class="ph">[${k}]</span> ×${v}`).join(" ");
+      return `<details class="call"${i===0?" open":""}><summary>${c.purpose==="speech"?"Voice clip":c.purpose.startsWith("pen-")?"Pen-check photos":c.purpose.startsWith("cgm-")?"Sensor-check photos":c.purpose==="visit-note"?"Visit note":i===0?"Latest question":"Earlier question"}</summary>
         <p class="dim">${esc(c.model)} · ${c.chars.toLocaleString()} characters · ${reps?"Replaced before sending: "+reps:"No identifiers in this request"}</p>
         ${c.messages.slice(i===0?-4:-2).map(m=>msgHtml(m,c.purpose)).join("")}</details>`; }).join("")
       +`<p class="sub" style="margin-top:20px">Full requests are kept only in a local log on this device.</p>`; }catch(e){}
@@ -829,6 +845,93 @@ async function openCheck(check){
 $("#vcgo").onclick=()=>{ if(VC.stage==="aim") vcCapture(); else openCheck(VC.check); };
 $("#vcx").onclick=()=>$("#vcheck").close();
 $("#vcheck").addEventListener("close",()=>{ if($("#vcheck").open) return; VC.stage="off"; vcStopCamera(); stopSpeaking(); });
+
+/* ---------- CGM sensor check (steps need NO model call; the camera check is optional) ----------
+   Profiles come from each maker's published instructions (prime/cgm_data.py). The camera check sends one picture to
+   Nemotron-3.5-Super-VL, which only describes it; the sentence Prime says comes from fixed code on the server. */
+const CG={stream:null, check:null, stage:"off"};
+const CG_SAY={kit:"Hold the sensor kit or applicator in front of the camera so I can read the packaging.",
+              site:"Show me the bare skin where the sensor will go. Keep your face out of the picture.",
+              cap:"Hold the applicator up so I can see its open end.",
+              labels:"Show me the sticky side of the applicator.",
+              applied:"Show me the applicator pressed flat against your skin.",
+              patch:"Show me the sensor patch on your skin with its edges in view. Keep your face out of the picture.",
+              transmitter:"Show me the transmitter in its holder on your skin."};
+const CG_TITLE={kit:"Check the sensor kit", site:"Check the skin", cap:"Check the applicator cap", labels:"Check the labels are off",
+                applied:"Check the applicator", patch:"Check the patch", transmitter:"Check the transmitter"};
+async function cgmPicker(){
+  const r=await api("/api/cgms"), list=r.cgms.filter(c=>c.id!=="other"), makers=[...new Set(list.map(c=>c.maker))];
+  const opt=c=>`<option value="${c.id}"${c.id===r.chosen?" selected":""}>${esc(c.name)}${c.coverage==="limited"?" (limited help)":""}</option>`;
+  return `<div class="setrow"><label class="lbl" for="cgmpick">Your sensor<span class="hintx">The steps follow your sensor maker's instructions.</span></label>
+    <select id="cgmpick"><option value="">Not sure / another sensor</option>${makers.map(m=>`<optgroup label="${esc(m)}">${list.filter(c=>c.maker===m).map(opt).join("")}</optgroup>`).join("")}</select></div>`;
+}
+async function cgmCheck(){
+  stopSpeaking(); stopHandsFree(); const dlg=$("#cgm");
+  let data, picker=""; try{ [data, picker]=await Promise.all([api("/api/cgm-check"), cgmPicker().catch(()=>"")]); }catch(e){ alert(e.message); return; }
+  let i=0;
+  const info=()=>`<p class="note">${data.caveat?`<strong>${esc(data.caveat)}</strong> `:""}${data.sources.length?"Steps paraphrased from: "+data.sources.map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a>`).join("; ")+". Checked "+esc(data.checked)+". ":""}${esc(data.reminder)}</p>`;
+  const draw=()=>{ const n=data.steps.length, last=i>=n;
+    $("#cgmbody").innerHTML=`<div class="dhead"><h2 id="cgmtitle">Sensor check${data.cgm.chosen?": "+esc(data.cgm.name):""}</h2><button class="close" type="button" id="gx">Close</button></div><div class="count">${last?"Done":"Step "+(i+1)+" of "+n}</div>`+
+      (i===0?picker+info():"")+
+      (last?`<div class="step">${esc(data.after)}</div>`:`<div class="step" aria-live="assertive">${esc(data.steps[i].say)}</div>`)+
+      `<div class="dfoot">${i>0?`<button class="btn quiet" id="gb" type="button">Back</button>`:""}<button class="btn quiet" id="gr" type="button">Repeat</button>${!last&&data.steps[i].check?`<button class="btn quiet" id="gv" type="button">Check with camera</button>`:""}<button class="btn" id="gn" type="button">${last?"Finish":"Next"}</button></div>`;
+    $("#gb")&&($("#gb").onclick=()=>{ i--; draw(); }); $("#gr").onclick=()=>speak(last?data.after:data.steps[i].say);
+    $("#gx").onclick=()=>{ stopSpeaking(); dlg.close(); };
+    $("#gn").onclick=async()=>{ if(!last){ i++; draw(); return; }
+      try{ const r=await api("/api/cgm-done",{method:"POST"}); stopSpeaking(); dlg.close(); speak(r.readback); }catch(e){ stopSpeaking(); dlg.close(); } };
+    $("#gv")&&($("#gv").onclick=()=>cgmOpenCheck(data.steps[i].check));
+    $("#cgmpick")&&($("#cgmpick").onchange=async e=>{ const r=await api("/api/cgm",{method:"POST",body:JSON.stringify({cgm:e.target.value||null})});
+      speak(r.readback); data=await api("/api/cgm-check"); i=0; picker=await cgmPicker().catch(()=>""); draw(); });
+    speak(last?data.after:data.steps[i].say); $("#gn").focus(); };
+  draw(); dlg.showModal();
+}
+function cgmStopCamera(){ if(CG.stream){ CG.stream.getTracks().forEach(t=>t.stop()); CG.stream=null; } }
+function cgSay(t){ $("#gcsay").textContent=t; speak(t); }
+async function cgmOpenCheck(check){
+  stopSpeaking(); stopHandsFree(); cgmStopCamera();
+  Object.assign(CG,{check, stage:"aim"}); $("#gctitle").textContent=CG_TITLE[check]||"Camera check";
+  $("#gcresult").innerHTML=""; $("#gcgo").textContent="Take it now"; $("#gcgo").disabled=false; $("#gcview").hidden=false; $("#gcsay").textContent="";
+  const dlg=$("#cgmcam"); if(!dlg.open) dlg.showModal();
+  if(!navigator.mediaDevices?.getUserMedia){ $("#gcview").hidden=true; CG.stage="done"; cgSay("The camera isn't available here. Do this step without it, or ask someone to look."); return; }
+  try{
+    CG.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}, width:{ideal:1280}, height:{ideal:720}}, audio:false});
+    const v=$("#gcvideo"); v.srcObject=CG.stream; await v.play(); cgSay(CG_SAY[check]);
+  }catch(e){ cgmStopCamera(); $("#gcview").hidden=true; CG.stage="done";
+    cgSay(e.name==="NotAllowedError"?"The camera is blocked. Do this step without it, or ask someone to look.":"The camera couldn't start. Do this step without it, or ask someone to look."); }
+}
+async function cgmCapture(){
+  const v=$("#gcvideo"); if(CG.stage!=="aim"||!v.videoWidth) return; CG.stage="capture"; $("#gcgo").disabled=true;
+  const k=Math.min(1,768/Math.max(v.videoWidth,v.videoHeight)), c=document.createElement("canvas");
+  c.width=Math.round(v.videoWidth*k); c.height=Math.round(v.videoHeight*k); c.getContext("2d").drawImage(v,0,0,c.width,c.height);
+  const frame=c.toDataURL("image/jpeg",.82); cgmStopCamera(); $("#gcview").hidden=true;
+  $("#gcresult").innerHTML=`<div class="frames"><img src="${frame}" alt="The picture that was sent"></div>`; S.sentFrames=[frame];
+  cgSay("Got it. Looking…");
+  try{ const r=await api("/api/cgm-frames",{method:"POST",body:JSON.stringify({check:CG.check, frames:[frame]})});
+    $("#gcresult").innerHTML+=`${r.seen?`<p class="note">I see: ${esc(r.seen)}</p>`:""}<p class="${r.status==="ok"?"":"warn"}" style="font-size:1.15rem">${esc(r.say)}</p>`;
+    $("#gcsay").textContent=r.status==="ok"?"Done.":r.status==="fix"?"One thing to fix.":"I couldn't tell."; speak(r.say);
+    if(r.remaining<=5) $("#remain").textContent=r.remaining+" questions left in this demo";
+  }catch(e){ $("#gcresult").innerHTML+=`<p class="err">${esc(e.message)}</p>`; $("#gcsay").textContent="That did not work."; speak(e.message); }
+  CG.stage="done"; $("#gcgo").textContent="Try again"; $("#gcgo").disabled=false;
+}
+$("#gcgo").onclick=()=>{ if(CG.stage==="aim") cgmCapture(); else cgmOpenCheck(CG.check); };
+$("#gcx").onclick=()=>$("#cgmcam").close();
+$("#cgmcam").addEventListener("close",()=>{ if($("#cgmcam").open) return; CG.stage="off"; cgmStopCamera(); stopSpeaking(); });
+$("#cgmbtn").onclick=cgmCheck;
+
+/* ---------- clinic visit note (code computes the numbers; Nemotron 3 Ultra writes the note; the chat's guards check it) ---------- */
+async function visitNote(){
+  stopSpeaking(); stopHandsFree(); const dlg=$("#vnote"), box=$("#vnbody");
+  box.innerHTML=`<p class="thinking" aria-busy="true">Writing your note with Nemotron 3 Ultra…</p>`; if(!dlg.open) dlg.showModal();
+  const t0=performance.now();
+  try{
+    const r=await api("/api/visit-note",{method:"POST"});
+    if(r.failed){ box.innerHTML=`<p class="warn">${esc(r.text)}</p><div class="dfoot"><button class="btn" id="vnretry" type="button">Try again</button></div>`; $("#vnretry").onclick=visitNote; return; }
+    box.innerHTML=answerHtml(r)+`<p class="note">Written by ${esc(r.model.replace(/^nvidia\//,""))} in ${((performance.now()-t0)/1000).toFixed(1)} s, from your data for ${esc(prettyDates(r.range[0]))} to ${esc(prettyDates(r.range[1]))}. Not medical advice.</p>`;
+    box.querySelector("[data-read]").onclick=()=>{ const was=S.aloud; S.aloud=true; speak(stripCites(r.text).clean); S.aloud=was; };
+    if(r.remaining<=5) $("#remain").textContent=r.remaining+" questions left in this demo";
+  }catch(e){ box.innerHTML=`<p class="err">${esc(e.message)}</p><div class="dfoot"><button class="btn" id="vnretry" type="button">Try again</button></div>`; $("#vnretry").onclick=visitNote; }
+}
+$("#vnbtn").onclick=visitNote;
 
 /* ---------- settings (kept in localStorage when allowed) ---------- */
 const store={get(k,d){try{const v=localStorage.getItem("prime_"+k);return v===null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem("prime_"+k,v)}catch(e){}}};
