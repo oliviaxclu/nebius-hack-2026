@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
 from . import analysis as A
-from . import cgm, cgm_vision, cites, db, evidence, pens, speech, synthetic, vision
+from . import cgm, cgm_vision, cites, db, evidence, pens, speech, synthetic, vision, visit_note
 from .cgm_data import CHECKS as CGM_CHECKS
 from .sites import ZONES
 from .agent import EMERGENCY, EMERGENCY_REPLY, Agent
@@ -418,6 +418,26 @@ def create_app(settings: Settings | None = None, llm_factory=None, root: Path | 
             spend(s)
         obs = cgm_vision.parse(raw, body.check)
         return cgm_vision.decide(body.check, obs, c["name"], c["keyword"]) | {"observed": obs, "remaining": per_session - s.calls}
+
+    @app.post("/api/visit-note")
+    def visit_note_route(request: Request, response: Response):
+        """The clinic visit note. Code computes the summary; Nemotron Ultra writes the note; the chat's guards check it."""
+        s = sess(request, response)
+        win = visit_note.window(s.conn)
+        if not win:
+            raise HTTPException(404, "There is no glucose data on this device yet.")
+        check_budget(s)
+        summary = s.toolbox.visit_summary(*win)
+        with s.lock:
+            try:
+                llm = llm_factory(settings, s.conn, Redactor(db.load_identity(s.conn)))
+                raw = llm.reason(visit_note.messages(summary))
+            except RuntimeError as e:
+                raise HTTPException(503, str(e))
+            except Exception as e:
+                raise HTTPException(502, f"The note could not be written ({type(e).__name__}). Try again in a moment.")
+            spend(s)
+        return visit_note.finish(s.conn, raw) | {"range": list(win), "model": settings.reason_model or settings.model, "remaining": per_session - s.calls}
 
     @app.post("/api/transcribe")
     async def transcribe(request: Request, response: Response):
