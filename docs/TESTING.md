@@ -41,6 +41,7 @@ Check each:
 - [ ] The red "Pattern worth a clinic call" card appears with the days and the safe next steps; the red-underlined days 13–20 match.
 - [ ] Click day 10 (a steroid day): afternoon is high, fasting is near normal; the text under the chart says the same in words.
 - [ ] Click day 28: a hatched region labelled "sensor?" around 3 AM.
+- [ ] **Sensor check** works without a key: pick a sensor, the steps follow that sensor and show their source links, and Guardian 4 / Eversense show what they cannot do. With a key, "Check with camera" on a sensor kit, bare skin, an applicator with its cap off, and a patch with a lifted edge gives the right answer, and a plain object held up never gets an "ok".
 - [ ] **Pen check** works without a key: steps are read aloud (browser voice), Next/Back/Repeat work, and the two-caps step is clear.
 - [ ] Keyboard only: Tab reaches everything; Escape stops speech; the skip link jumps to the question box.
 - [ ] A+/A− and High contrast change the layout without breaking it; on a phone-sized window the tabs appear.
