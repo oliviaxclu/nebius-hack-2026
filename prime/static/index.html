@@ -307,6 +307,7 @@ select{min-height:48px;border:2px solid var(--line);border-radius:12px;backgroun
   <div class="dhead"><h2 id="gctitle">Camera check</h2><button class="close" type="button" id="gcx">Close</button></div>
   <p class="note">A picture of this view is sent to check this one step. Keep your face out of it. Nothing is stored.</p>
   <div class="camview" id="gcview"><video id="gcvideo" playsinline muted aria-hidden="true"></video></div>
+  <p class="note" id="gcauto" aria-live="polite"></p>
   <p class="step" id="gcsay" role="status" aria-live="assertive"></p>
   <div id="gcresult"></div>
   <div class="dfoot"><button class="btn" id="gcgo" type="button">Take it now</button></div>
@@ -328,6 +329,7 @@ select{min-height:48px;border:2px solid var(--line);border-radius:12px;backgroun
   <p class="step" id="coachsay" role="status" aria-live="assertive"></p>
   <div class="dfoot"><button class="btn" id="coachgo" type="button">Start the count</button></div>
 </dialog>
+<script src="/autocapture.js"></script>
 <script>
 const $ = (s, r=document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -849,7 +851,8 @@ $("#vcheck").addEventListener("close",()=>{ if($("#vcheck").open) return; VC.sta
 /* ---------- CGM sensor check (steps need NO model call; the camera check is optional) ----------
    Profiles come from each maker's published instructions (prime/cgm_data.py). The camera check sends one picture to
    Nemotron-3.5-Super-VL, which only describes it; the sentence Prime says comes from fixed code on the server. */
-const CG={stream:null, check:null, stage:"off"};
+const CG={stream:null, check:null, stage:"off", watch:0, ac:null, tries:0, hintAt:0, hintText:""};
+const CG_MAX_AUTO=3, CG_CANVAS=document.createElement("canvas");   // each automatic try is one model call, so there is a limit
 const CG_SAY={kit:"Hold the sensor kit or applicator in front of the camera so I can read the packaging.",
               site:"Show me the bare skin where the sensor will go. Keep your face out of the picture.",
               cap:"Hold the applicator up so I can see its open end.",
@@ -887,35 +890,62 @@ async function cgmCheck(){
 }
 function cgmStopCamera(){ if(CG.stream){ CG.stream.getTracks().forEach(t=>t.stop()); CG.stream=null; } }
 function cgSay(t){ $("#gcsay").textContent=t; speak(t); }
+/* Auto-capture: the camera watches the live video on this device (movement, brightness, sharpness) and takes the picture by itself
+   once the item is held still. Nothing is sent until then. "Take it now" always works as a backup. See autocapture.js. */
+function cgHint(t){ const now=performance.now(); if(t===CG.hintText && now-CG.hintAt<6000) return; CG.hintText=t; CG.hintAt=now; $("#gcsay").textContent=t; speak(t); }
+function cgmWatchStart(requireMotion){
+  clearTimeout(CG.watch); const AC=window.AutoCapture;
+  if(!AC||CG.tries>=CG_MAX_AUTO){ $("#gcauto").textContent="Tap Take it now when you are ready."; return; }
+  CG.ac={st:AC.newState(performance.now(), requireMotion), prev:null};
+  $("#gcauto").textContent="I'll take the picture on my own when you hold it still.";
+  const tick=()=>{
+    if(CG.stage!=="aim") return;
+    const v=$("#gcvideo");
+    if(v.readyState>=2 && v.videoWidth){
+      const m=AC.measure(v, CG_CANVAS), d=AC.diff(CG.ac.prev, m.luma); CG.ac.prev=m.luma;
+      const r=AC.step(CG.ac.st, {mean:m.mean, std:m.std, sharp:m.sharp, diff:d}, performance.now());
+      if(r.action==="capture"){ cgmCapture(true); return; }
+      if(r.action==="hint") cgHint(r.say);
+    }
+    CG.watch=setTimeout(tick, AC.CFG.sampleMs);
+  };
+  CG.watch=setTimeout(tick, AC.CFG.sampleMs);
+}
 async function cgmOpenCheck(check){
-  stopSpeaking(); stopHandsFree(); cgmStopCamera();
-  Object.assign(CG,{check, stage:"aim"}); $("#gctitle").textContent=CG_TITLE[check]||"Camera check";
-  $("#gcresult").innerHTML=""; $("#gcgo").textContent="Take it now"; $("#gcgo").disabled=false; $("#gcview").hidden=false; $("#gcsay").textContent="";
+  stopSpeaking(); stopHandsFree(); cgmStopCamera(); clearTimeout(CG.watch);
+  Object.assign(CG,{check, stage:"aim", tries:0, hintText:"", hintAt:0}); $("#gctitle").textContent=CG_TITLE[check]||"Camera check";
+  $("#gcresult").innerHTML=""; $("#gcgo").textContent="Take it now"; $("#gcgo").disabled=false; $("#gcview").hidden=false; $("#gcsay").textContent=""; $("#gcauto").textContent="";
   const dlg=$("#cgmcam"); if(!dlg.open) dlg.showModal();
   if(!navigator.mediaDevices?.getUserMedia){ $("#gcview").hidden=true; CG.stage="done"; cgSay("The camera isn't available here. Do this step without it, or ask someone to look."); return; }
   try{
     CG.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}, width:{ideal:1280}, height:{ideal:720}}, audio:false});
-    const v=$("#gcvideo"); v.srcObject=CG.stream; await v.play(); cgSay(CG_SAY[check]);
+    const v=$("#gcvideo"); v.srcObject=CG.stream; await v.play(); cgSay(CG_SAY[check]); cgmWatchStart(false);
   }catch(e){ cgmStopCamera(); $("#gcview").hidden=true; CG.stage="done";
     cgSay(e.name==="NotAllowedError"?"The camera is blocked. Do this step without it, or ask someone to look.":"The camera couldn't start. Do this step without it, or ask someone to look."); }
 }
-async function cgmCapture(){
-  const v=$("#gcvideo"); if(CG.stage!=="aim"||!v.videoWidth) return; CG.stage="capture"; $("#gcgo").disabled=true;
+function cgmFinish(){ cgmStopCamera(); $("#gcview").hidden=true; $("#gcauto").textContent=""; CG.stage="done"; $("#gcgo").textContent="Try again"; $("#gcgo").disabled=false; }
+async function cgmCapture(auto){
+  const v=$("#gcvideo"); if(CG.stage!=="aim"||!v.videoWidth) return; CG.stage="capture"; clearTimeout(CG.watch); $("#gcgo").disabled=true;
+  if(auto) CG.tries++;
   const k=Math.min(1,768/Math.max(v.videoWidth,v.videoHeight)), c=document.createElement("canvas");
   c.width=Math.round(v.videoWidth*k); c.height=Math.round(v.videoHeight*k); c.getContext("2d").drawImage(v,0,0,c.width,c.height);
-  const frame=c.toDataURL("image/jpeg",.82); cgmStopCamera(); $("#gcview").hidden=true;
+  const frame=c.toDataURL("image/jpeg",.82);
   $("#gcresult").innerHTML=`<div class="frames"><img src="${frame}" alt="The picture that was sent"></div>`; S.sentFrames=[frame];
-  cgSay("Got it. Looking…");
-  try{ const r=await api("/api/cgm-frames",{method:"POST",body:JSON.stringify({check:CG.check, frames:[frame]})});
+  $("#gcauto").textContent=""; cgSay(auto?"Got it, holding still. Looking…":"Got it. Looking…");
+  let r=null;
+  try{ r=await api("/api/cgm-frames",{method:"POST",body:JSON.stringify({check:CG.check, frames:[frame]})});
     $("#gcresult").innerHTML+=`${r.seen?`<p class="note">I see: ${esc(r.seen)}</p>`:""}<p class="${r.status==="ok"?"":"warn"}" style="font-size:1.15rem">${esc(r.say)}</p>${r.model?`<p class="note">Looked at by ${esc(r.model.replace(/^nvidia\//,""))} on Nebius Token Factory in ${r.seconds} s. The words above are fixed text, not written by the model.</p>`:""}`;
-    $("#gcsay").textContent=r.status==="ok"?"Done.":r.status==="fix"?"One thing to fix.":"I couldn't tell."; speak(r.say);
+    $("#gcsay").textContent=r.status==="ok"?"Done.":r.status==="fix"?"One thing to fix.":"I couldn't tell.";
     if(r.remaining<=5) $("#remain").textContent=r.remaining+" questions left in this demo";
-  }catch(e){ $("#gcresult").innerHTML+=`<p class="err">${esc(e.message)}</p>`; $("#gcsay").textContent="That did not work."; speak(e.message); }
-  CG.stage="done"; $("#gcgo").textContent="Try again"; $("#gcgo").disabled=false;
+  }catch(e){ $("#gcresult").innerHTML+=`<p class="err">${esc(e.message)}</p>`; $("#gcsay").textContent="That did not work."; speak(e.message); cgmFinish(); return; }
+  if(r.status==="ok" || CG.tries>=CG_MAX_AUTO || !window.AutoCapture){ speak(r.say); cgmFinish(); return; }
+  // Not "ok": keep the camera on, and look again by itself once the person has adjusted and held still.
+  speak(r.say+" Adjust it and hold it still, and I will look again.");
+  CG.stage="aim"; $("#gcgo").textContent="Take it now"; $("#gcgo").disabled=false; cgmWatchStart(true);
 }
-$("#gcgo").onclick=()=>{ if(CG.stage==="aim") cgmCapture(); else cgmOpenCheck(CG.check); };
+$("#gcgo").onclick=()=>{ if(CG.stage==="aim") cgmCapture(false); else cgmOpenCheck(CG.check); };
 $("#gcx").onclick=()=>$("#cgmcam").close();
-$("#cgmcam").addEventListener("close",()=>{ if($("#cgmcam").open) return; CG.stage="off"; cgmStopCamera(); stopSpeaking(); });
+$("#cgmcam").addEventListener("close",()=>{ if($("#cgmcam").open) return; CG.stage="off"; clearTimeout(CG.watch); cgmStopCamera(); stopSpeaking(); });
 $("#cgmbtn").onclick=cgmCheck;
 
 /* ---------- clinic visit note (code computes the numbers; Nemotron 3 Ultra writes the note; the chat's guards check it) ---------- */

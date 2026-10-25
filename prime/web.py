@@ -171,6 +171,10 @@ def create_app(settings: Settings | None = None, llm_factory=None, root: Path | 
         return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-cache"})   # a redeploy must not leave visitors on an old page
 
 
+    @app.get("/autocapture.js")
+    def autocapture_js():
+        return FileResponse(STATIC / "autocapture.js", media_type="text/javascript", headers={"Cache-Control": "no-cache"})
+
     @app.get("/health")
     @app.get("/api/health")
     def health():
