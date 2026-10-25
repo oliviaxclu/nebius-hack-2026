@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
-# Push the current commit to a Hugging Face Docker Space as the hosted demo.
-# The Space needs a settings header at the top of its README; it is added only to the pushed copy,
+# Publish the current commit to a Hugging Face Docker Space as the hosted demo.
+# Uses the Hugging Face CLI login (`hf auth login`, browser sign-in is fine), so no git token is needed.
+# The Space needs a settings header at the top of its README; it is added only to the uploaded copy,
 # so the GitHub README stays clean. Usage: scripts/push_space.sh <hf-username>/<space-name>
 set -euo pipefail
 SPACE="${1:?usage: scripts/push_space.sh <hf-username>/<space-name>}"
-REMOTE="${SPACE_REMOTE:-https://huggingface.co/spaces/${SPACE}}"   # SPACE_REMOTE: for testing against a local repo
+cd "$(git rev-parse --show-toplevel)"
+HF="$(command -v hf || echo .venv/bin/hf)"
+[ -x "$HF" ] || { echo "Install the Hugging Face CLI first: .venv/bin/pip install huggingface_hub"; exit 1; }
 git diff --quiet && git diff --cached --quiet || { echo "Commit or stash your changes first."; exit 1; }
 
-REPO="$(pwd)"
-TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"; git -C "$REPO" worktree prune' EXIT
-git worktree add --detach "$TMP/space" HEAD >/dev/null
-cd "$TMP/space"
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+git archive HEAD | tar -x -C "$TMP"                  # exactly the committed files: no .env, no local data
 { cat <<'YAML'
 ---
 title: Prime
@@ -25,10 +26,8 @@ short_description: Accessible glucose explainer and pen check on Nemotron
 ---
 
 YAML
-  cat README.md; } > README.space.md && mv README.space.md README.md
-git add README.md
-git -c user.name="$(git -C "$REPO" config user.name)" -c user.email="$(git -C "$REPO" config user.email)" \
-    commit -q -m "Hugging Face Space settings for $(git rev-parse --short HEAD~0)"
-git push --force "$REMOTE" HEAD:refs/heads/main
-cd "$REPO"
-echo "Pushed. Watch the build at $REMOTE (Logs), then open https://${SPACE/\//-}.hf.space"
+  cat "$TMP/README.md"; } > "$TMP/README.space.md" && mv "$TMP/README.space.md" "$TMP/README.md"
+
+"$HF" upload "$SPACE" "$TMP" . --repo-type space --delete "*" \
+    --commit-message "Deploy $(git rev-parse --short HEAD)"
+echo "Uploaded. Watch the build at https://huggingface.co/spaces/${SPACE} (Logs), then open https://${SPACE/\//-}.hf.space"
