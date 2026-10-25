@@ -45,13 +45,13 @@ class LLM:
         resp = self.client.chat.completions.create(temperature=0.2, **payload)
         return resp.choices[0].message
 
-    def vision(self, prompt: str, images: list[str], purpose: str = "vision") -> str:
+    def vision(self, prompt: str, images: list[str], purpose: str = "vision", subject: str = "your hands and pen") -> str:
         """A text prompt plus a few images (data URLs). Only the text is redacted: running redaction over base64 could
         corrupt an image. The audit log records how many frames were sent and their size, never the frames.
         No low max_tokens: Super-VL reasons before it answers and returns nothing if the budget runs out."""
         text = self.redactor.redact_obj(prompt)
         kb = round(sum(len(u) for u in images) * 3 / 4 / 1024)
-        note = f"{len(images)} cropped frame{'s' if len(images) != 1 else ''} of your hands and pen, about {kb} KB, not stored"
+        note = f"{len(images)} cropped frame{'s' if len(images) != 1 else ''} of {subject}, about {kb} KB, not stored"
         self._audit(purpose, {"messages": [{"role": "user", "content": [{"type": "text", "text": text}, {"type": "image", "note": note}]}],
                               "n_tools": 0}, model=self.settings.vision_model)
         resp = self.client.chat.completions.create(
