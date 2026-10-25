@@ -21,19 +21,22 @@ export IMAGE=cr.$REGION_ID.nebius.cloud/$REGISTRY_PATH/prime-demo:0.3
 docker buildx build --platform linux/amd64 -t $IMAGE --push .                  # the image contains no secrets
 ```
 (Docker Hub also works: `docker buildx build --platform linux/amd64 -t <user>/prime-demo:0.3 --push .`)
-## 3. Create the endpoint
+## 3. Create the endpoint (what worked, 2026-10-25)
+OK, tested: Nebius AI Cloud needs payment details on the account before it lets you create anything (Token Factory credits do not
+cover AI Cloud). Pick a region where your CPU quota is above 0 (`nebius quotas quota-allowance list --parent-id <tenant-id>`;
+here eu-north1 and us-central1 were 0, us-north1 was 200).
 ```bash
-nebius ai endpoint create \
-  --name prime-demo \
-  --image docker.io/<dockerhub-user>/prime-demo:0.2 \
-  --platform cpu-d3 --preset 4vcpu-16gb \          # CHECK availability; a smaller preset is fine
-  --container-port 8080 \
-  --env "NEBIUS_API_KEY=<demo-key>,PRIME_MODEL=<your model>,DEMO_MAX_CALLS_PER_DAY=300,PRIME_SPEECH_MODEL=<omni model id, optional>,PRIME_SPEECH_BASE_URL=<omni endpoint>/v1,PRIME_SPEECH_API_KEY=<its token>" \
-  --public
+export PATH="$HOME/.nebius/bin:$PATH" P=<project-id>                           # the CLI's docker helper lives in ~/.nebius/bin
+scripts/store_demo_key.sh $P                                                   # hidden input; checks the key with Token Factory first
+nebius mysterybox secret get <secret-id> --format json | jq -r .spec.primary_version_id     # the version to pin
+nebius ai endpoint create --parent-id $P --name prime-demo --image "$IMAGE" \
+  --platform cpu-d3 --preset 2vcpu-8gb --container-port 8080 --auth none \
+  --env DEMO_MAX_CALLS_PER_DAY=300 --env-secret NEBIUS_API_KEY=<secret-id>@<version-id>
 ```
-- **Do NOT add `--auth token`.** It uses a bearer header a browser cannot send, so judges could not open the UI.
-- CHECK: plain `--env` puts the key in the endpoint spec. Look up Nebius *secret* environment variables and prefer them for the API key.
-- `/health` exists for health checks.
+- Name the CPU platform: the default platform is an H100 GPU. The `https://` URL is provided automatically; `--public` only adds a public IP.
+- `--auth none` so judges can open it in a browser. `/health` shows `key_configured`.
+- The endpoint pins the secret version it was created with, and the CLI has no `update`: to change the key, store it again,
+  then delete and recreate the endpoint with the new version (the URL changes).
 ## 3b. Optional: speech to text with Nemotron 3 Nano Omni
 Without this, voice uses the browser's speech recognition (Chrome sends that audio to Google). With it, audio goes only to your Omni endpoint and is not stored.
 
