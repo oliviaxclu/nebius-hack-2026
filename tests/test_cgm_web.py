@@ -61,6 +61,7 @@ def test_frames_endpoint_describes_then_code_speaks(tmp_path):
     before = c.post("/api/chat", json={"message": "I have chest pain"}).json()["remaining"]
     r = c.post("/api/cgm-frames", json={"check": "patch", "frames": [IMG]}).json()
     assert r["status"] == "fix" and "One edge looks lifted" in r["say"] and r["seen"] == "left edge curled" and r["remaining"] == before - 1
+    assert r["model"] == "nvidia/Nemotron-3.5-Super-VL" and isinstance(r["seconds"], float)       # shown on screen so the video can name the model
     assert "sensor patch" in seen[0][0]["content"][0]["text"]
     call = c.get("/api/audit").json()["calls"][0]
     assert call["purpose"] == "cgm-patch" and "sensor kit, skin or patch" in json.dumps(call) and "hands and pen" not in json.dumps(call)

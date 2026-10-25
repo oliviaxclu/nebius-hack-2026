@@ -907,7 +907,7 @@ async function cgmCapture(){
   $("#gcresult").innerHTML=`<div class="frames"><img src="${frame}" alt="The picture that was sent"></div>`; S.sentFrames=[frame];
   cgSay("Got it. Looking…");
   try{ const r=await api("/api/cgm-frames",{method:"POST",body:JSON.stringify({check:CG.check, frames:[frame]})});
-    $("#gcresult").innerHTML+=`${r.seen?`<p class="note">I see: ${esc(r.seen)}</p>`:""}<p class="${r.status==="ok"?"":"warn"}" style="font-size:1.15rem">${esc(r.say)}</p>`;
+    $("#gcresult").innerHTML+=`${r.seen?`<p class="note">I see: ${esc(r.seen)}</p>`:""}<p class="${r.status==="ok"?"":"warn"}" style="font-size:1.15rem">${esc(r.say)}</p>${r.model?`<p class="note">Looked at by ${esc(r.model.replace(/^nvidia\//,""))} on Nebius Token Factory in ${r.seconds} s. The words above are fixed text, not written by the model.</p>`:""}`;
     $("#gcsay").textContent=r.status==="ok"?"Done.":r.status==="fix"?"One thing to fix.":"I couldn't tell."; speak(r.say);
     if(r.remaining<=5) $("#remain").textContent=r.remaining+" questions left in this demo";
   }catch(e){ $("#gcresult").innerHTML+=`<p class="err">${esc(e.message)}</p>`; $("#gcsay").textContent="That did not work."; speak(e.message); }

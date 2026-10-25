@@ -408,6 +408,7 @@ def create_app(settings: Settings | None = None, llm_factory=None, root: Path | 
         check_budget(s)
         c = cgm.profile_for(s.conn)
         prompt = cgm_vision.prompt(body.check, c["keyword"])
+        t0 = time.time()
         with s.lock:
             try:
                 raw = llm_factory(settings, s.conn, Redactor(db.load_identity(s.conn))).vision(
@@ -418,7 +419,8 @@ def create_app(settings: Settings | None = None, llm_factory=None, root: Path | 
                 raise HTTPException(502, f"The camera check failed ({type(e).__name__}). Use the step without the camera, and try again in a moment.")
             spend(s)
         obs = cgm_vision.parse(raw, body.check)
-        return cgm_vision.decide(body.check, obs, c["name"], c["keyword"]) | {"observed": obs, "remaining": per_session - s.calls}
+        return cgm_vision.decide(body.check, obs, c["name"], c["keyword"]) | {
+            "observed": obs, "remaining": per_session - s.calls, "model": settings.vision_model, "seconds": round(time.time() - t0, 1)}
 
     @app.post("/api/visit-note")
     def visit_note_route(request: Request, response: Response):
