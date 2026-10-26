@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Prime: why your glucose did that, and did the insulin work</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2056%2056%22%3E%3Crect%20x%3D%224%22%20y%3D%224%22%20width%3D%2248%22%20height%3D%2248%22%20rx%3D%2214%22%20fill%3D%22%230F6E56%22/%3E%3Crect%20x%3D%2214%22%20y%3D%2225%22%20width%3D%2226%22%20height%3D%227%22%20rx%3D%223.5%22%20fill%3D%22%23E1F5EE%22%20transform%3D%22rotate%28-35%2027%2028.5%29%22/%3E%3Cpath%20d%3D%22M33%2038l5%205%209-11%22%20stroke%3D%22%23FAC775%22%20stroke-width%3D%224%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Atkinson Hyperlegible was designed by the Braille Institute for readers with low vision. -->
@@ -12,17 +13,20 @@
 :root{
   --scale:1;
   --bg:#FAF9F6; --surface:#FFFFFF; --ink:#151515; --muted:#4A4A4A; --line:#D9D5CD;
-  --accent:#0A58A8; --on-accent:#FFFFFF; --alert:#A3122F; --on-alert:#FFFFFF; --ok:#0B6A4E; --band:rgba(11,106,78,.12); --focus:#0A58A8;
+  --accent:#0F6E56; --on-accent:#FFFFFF; --alert:#A3122F; --on-alert:#FFFFFF; --ok:#0B6A4E; --band:rgba(11,106,78,.12); --focus:#0F6E56;
+  --tint:#E1F5EE; --alert-tint:#FCEBEB; --logo-bg:#0F6E56; --logo-pen:#E1F5EE; --logo-check:#FAC775;
   --font:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){
   :root{--bg:#121212;--surface:#1C1C1C;--ink:#F3F3F3;--muted:#BBBBBB;--line:#3A3A3A;
-    --accent:#8CBCFF;--on-accent:#0A1A2F;--alert:#FF9BAA;--on-alert:#1B0A0D;--ok:#79D8B4;--band:rgba(121,216,180,.14);--focus:#8CBCFF;color-scheme:dark}
+    --accent:#5DCAA5;--on-accent:#04342C;--alert:#FF9BAA;--on-alert:#1B0A0D;--ok:#79D8B4;--band:rgba(121,216,180,.14);--focus:#5DCAA5;
+    --tint:#0B3B30;--alert-tint:#3A1518;--logo-bg:#1D9E75;--logo-pen:#E1F5EE;--logo-check:#FAC775;color-scheme:dark}
 }
 /* High contrast: white and yellow on black, the pairing many low-vision readers prefer. */
-body.hc{--bg:#000;--surface:#000;--ink:#FFF;--muted:#FFF;--line:#FFF;--accent:#FFE14D;--on-accent:#000;--alert:#FF8A8A;--on-alert:#000;--ok:#7CFFB2;--band:rgba(124,255,178,.2);--focus:#FFE14D}
+body.hc{--bg:#000;--surface:#000;--ink:#FFF;--muted:#FFF;--line:#FFF;--accent:#FFE14D;--on-accent:#000;--alert:#FF8A8A;--on-alert:#000;--ok:#7CFFB2;--band:rgba(124,255,178,.2);--focus:#FFE14D;
+  --tint:#000;--alert-tint:#000;--logo-bg:#FFE14D;--logo-pen:#000;--logo-check:#000}
 *{box-sizing:border-box}
 html,body{height:100%}
 html{font-size:calc(18px*var(--scale))}
@@ -40,15 +44,30 @@ a{color:var(--accent);text-underline-offset:3px}
 /* The header and composer grow with text size up to about 140%, so reading space survives very large text. */
 .bar,#composer{font-size:min(1rem,25px)}
 .bar{border-bottom:1px solid var(--line);flex:none}
-.top,.views{max-width:760px;margin:0 auto;width:100%;display:flex;align-items:center}
-.top{gap:8px;padding:12px 20px 4px;flex-wrap:wrap}
+.top{max-width:760px;margin:0 auto;width:100%;display:flex;align-items:center}
+.views{width:100%;display:flex;align-items:center}
+.top{gap:8px;padding:10px 20px;flex-wrap:wrap}
 .brand{font-size:1.5em;font-weight:700;margin:0;flex:1;letter-spacing:-.01em}
-.tools{display:flex;gap:8px}
-.tbtn{min-height:48px;padding:0 18px;white-space:nowrap;border-radius:999px;border:2px solid var(--line);background:transparent;font-weight:700}
-.tbtn:hover{border-color:var(--ink)}
-.views{gap:4px;padding:0 12px;overflow-x:auto;scrollbar-width:none}
-.views button{flex:1 0 auto;max-width:200px;white-space:nowrap;border:0;border-bottom:3px solid transparent;background:transparent;font-weight:700;color:var(--muted);padding:8px 4px;border-radius:0}
-.views button[aria-current="page"]{color:var(--ink);border-bottom-color:var(--ink)}
+.logo{height:2.1em;width:auto;display:block;color:var(--ink)}
+.ic{width:1.4em;height:1.4em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.iconbtn{width:52px;height:52px;min-height:52px;border-radius:50%;border:2px solid var(--line);background:transparent;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.iconbtn:hover{border-color:var(--ink)}
+.iconbtn .ic{width:26px;height:26px}
+/* Bottom bar: three big icon buttons with short labels */
+.views{flex:none;justify-content:space-around;gap:4px;padding:6px 12px calc(6px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--bg);font-size:min(1rem,22px)}
+.views button{flex:1;max-width:200px;border:0;background:transparent;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;font-size:.85em;font-weight:700;border-radius:12px}
+.views button .ic{width:28px;height:28px}
+.views button[aria-current="page"]{color:var(--accent)}
+.views button[aria-current="page"] .ic{stroke-width:2.6}
+/* Home tiles */
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 20px}
+.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:120px;padding:16px 8px;border:2px solid var(--line);border-radius:20px;background:var(--surface);font-weight:700;font-size:1.05rem;line-height:1.2;text-align:center}
+.tile .ic{width:44px;height:44px;color:var(--accent);stroke-width:1.8}
+.tile:hover{border-color:var(--accent)}
+body.hc .tile{border-color:#fff}
+@media (min-width:640px){ .tiles{grid-template-columns:repeat(4,minmax(0,1fr))} }
+.ideas summary{font-size:1.05rem}
+.ideas .starters{margin-top:4px}
 
 main{flex:1;min-height:0;display:flex;flex-direction:column}
 .view{flex:1;min-height:0;overflow:auto}
@@ -58,9 +77,17 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 #view-ask{display:flex;flex-direction:column;overflow:hidden}
 #log{flex:1;overflow:auto;outline:none}
 #log .wrap{padding-bottom:16px}
-.hello{font-size:2rem;line-height:1.2;margin:0 0 10px;letter-spacing:-.01em}
+.hello{font-size:1.9rem;line-height:1.2;margin:0 0 18px;letter-spacing:-.01em}
 .lede{color:var(--muted);font-size:1.1rem;margin:0 0 32px;max-width:44ch}
 .alert{border-left:6px solid var(--alert);padding:2px 0 2px 18px;margin:0 0 36px}
+/* Home's one-line version of the alert (the full one is under My days) */
+.alert.compact{border:0;border-radius:18px;background:var(--alert-tint);padding:14px 16px;margin:0 0 20px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:start}
+body.hc .alert.compact{border:2px solid var(--alert)}
+.alert.compact .ic{width:30px;height:30px;color:var(--alert);margin-top:2px}
+.alert.compact p{margin:0;color:var(--alert);font-weight:700;font-size:1.05rem;line-height:1.35}
+.alert.compact .acts,.alert.compact details{grid-column:2}
+.alert.compact .acts{margin-top:8px}
+.alert.compact .btn{min-height:44px;padding:0 18px;background:var(--alert);border-color:var(--alert);color:var(--on-alert)}
 .alert h3{color:var(--alert);font-size:1.15rem;line-height:1.35;margin:0 0 6px}
 .alert p{margin:0 0 12px;max-width:52ch}
 .acts{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
@@ -213,19 +240,9 @@ select{min-height:48px;border:2px solid var(--line);border-radius:12px;backgroun
 <a class="skip" href="#q">Skip to the question box</a>
 <div class="bar">
   <header class="top">
-    <h1 class="brand">Prime</h1>
-    <div class="tools">
-      <button class="tbtn" id="penbtn" type="button" aria-haspopup="dialog">Pen check</button>
-      <button class="tbtn" id="cgmbtn" type="button" aria-haspopup="dialog">Sensor check</button>
-      <button class="tbtn" id="vnbtn" type="button" aria-haspopup="dialog">Visit note</button>
-      <button class="tbtn" id="setbtn" type="button" aria-haspopup="dialog">Settings</button>
-    </div>
+    <h1 class="brand"><svg class="logo" viewBox="0 0 150 56" role="img" aria-label="Prime"><rect x="4" y="4" width="48" height="48" rx="14" fill="var(--logo-bg)"/><rect x="14" y="25" width="26" height="7" rx="3.5" fill="var(--logo-pen)" transform="rotate(-35 27 28.5)"/><path d="M33 38l5 5 9-11" stroke="var(--logo-check)" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><text x="62" y="38" font-size="27" font-weight="700" fill="currentColor" font-family="Atkinson Hyperlegible, system-ui, sans-serif">Prime</text></svg></h1>
+    <button class="iconbtn" id="setbtn" type="button" aria-haspopup="dialog" aria-label="Settings" title="Settings"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
   </header>
-  <nav class="views" aria-label="Sections">
-    <button type="button" data-view="ask" aria-current="page">Ask</button>
-    <button type="button" data-view="data">My days</button>
-    <button type="button" data-view="privacy">Privacy</button>
-  </nav>
 </div>
 
 <main id="main">
@@ -233,12 +250,18 @@ select{min-height:48px;border:2px solid var(--line);border-radius:12px;backgroun
     <div id="log" role="log" aria-live="polite" aria-label="Conversation" tabindex="-1">
       <div class="wrap" id="turns">
         <div id="welcome">
-          <h2 class="hello">What would you like to know?</h2>
-          <p class="lede">Ask why your glucose went up or down. Prime explains using your own records and never tells you how much insulin to take.</p>
+          <h2 class="hello" id="hello">Hello</h2>
           <div id="alert"></div>
-          <p class="label" id="trylabel">Try asking</p>
-          <ul class="starters" id="starters" aria-labelledby="trylabel"></ul>
-          <p class="demo">This is a demo with a fictional patient. It is not medical advice.</p>
+        </div>
+        <nav class="tiles" aria-label="Checks and notes">
+          <button class="tile" id="penbtn" type="button" aria-haspopup="dialog"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 3l4 4M19 5l-9.5 9.5M14 6l4 4M6.5 13.5l4 4L7 21H3v-4z"/><path d="M8 12l4 4"/></svg><span>Pen check</span></button>
+          <button class="tile" id="cgmbtn" type="button" aria-haspopup="dialog"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3"/></svg><span>Sensor</span></button>
+          <button class="tile" type="button" data-goto="data"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-6"/></svg><span>My days</span></button>
+          <button class="tile" id="vnbtn" type="button" aria-haspopup="dialog"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg><span>Visit note</span></button>
+        </nav>
+        <div id="ideas">
+          <details class="ideas"><summary>Ideas to ask</summary><ul class="starters" id="starters"></ul></details>
+          <p class="demo">Never tells you how much to take. Demo with a fictional patient.</p>
         </div>
       </div>
     </div>
@@ -275,6 +298,11 @@ select{min-height:48px;border:2px solid var(--line);border-radius:12px;backgroun
     </div>
   </section>
 </main>
+<nav class="views" aria-label="Sections">
+  <button type="button" data-view="ask" aria-current="page"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span>Home</span></button>
+  <button type="button" data-view="data"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg><span>Days</span></button>
+  <button type="button" data-view="privacy"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><rect x="9" y="11" width="6" height="5" rx="1"/><path d="M10 11V9.5a2 2 0 0 1 4 0V11"/></svg><span>Privacy</span></button>
+</nav>
 
 <dialog id="settings" aria-labelledby="settitle">
   <div class="dhead"><h2 id="settitle">Settings</h2><button class="close" type="button" data-close>Done</button></div>
@@ -388,6 +416,7 @@ function setView(v){
   if(v==="data" && S.day) $("#daybox").innerHTML=chartSvg(S.day);
 }
 document.querySelectorAll(".views button").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
+document.addEventListener("click", e=>{ const t=e.target.closest("[data-goto]"); if(t) setView(t.dataset.goto); });
 
 /* ---------- day chart (inline SVG, with a text equivalent) ---------- */
 function chartSvg(day){
@@ -420,7 +449,13 @@ function dayText(day){
 }
 
 /* ---------- the pattern alert (shown on Ask and on My days) ---------- */
+const ICON_ALERT=`<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></svg>`;
 function alertHtml(p, key){
+  if(key==="a") return `<section class="alert compact" aria-labelledby="alerth-a">${ICON_ALERT}
+    <p id="alerth-a">Mornings ran high ${fmtD(p.from)}–${fmtD(p.to)}. Worth a call to your care team.</p>
+    <div class="acts"><button class="btn" type="button" data-explain>Explain</button></div>
+    <details><summary>What to do</summary><ul>${p.safe_next_steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ul></details>
+  </section>`;
   return `<section class="alert" aria-labelledby="alerth-${key}">
     <h3 id="alerth-${key}">Your mornings ran high from ${fmtD(p.from)} to ${fmtD(p.to)}</h3>
     <p>They were about ${Math.round(p.fasting_delta_mean)} above your usual, even though insulin was logged every night${p.dose_escalated?", including a higher dose":""}. This is worth a call to your care team. It is a pattern, not proof that a dose was missed.</p>
@@ -499,7 +534,7 @@ function answerHtml(r){
   return h+`</div>`;
 }
 async function ask(q){
-  $("#welcome")?.remove(); stopSpeaking(); setView("ask");
+  $("#welcome")?.remove(); $("#ideas")?.remove(); stopSpeaking(); setView("ask");
   const turn=document.createElement("article"); turn.className="turn";
   turn.innerHTML=`<h2 class="q"><span class="sr">You asked: </span>${esc(q)}</h2><div class="ans" aria-busy="true"><p class="thinking">Looking at your records…</p></div>`;
   $("#turns").appendChild(turn); turn.scrollIntoView({block:"start"}); $("#send").disabled=true;
@@ -513,8 +548,10 @@ async function ask(q){
   }catch(e){ box.innerHTML=`<p class="err">${esc(e.message)}</p>`; box.removeAttribute("aria-busy"); if(S.hands){ stopHandsFree("Voice off: "+e.message); speak(e.message); } }
   $("#send").disabled=false; loadOverview(true);
 }
+function greeting(){ const h=new Date().getHours(); return h<12?"Good morning":h<18?"Good afternoon":"Good evening"; }
 function buildWelcome(){
   const o=S.overview; if(!$("#welcome")) return;
+  $("#hello").textContent=greeting();
   $("#alert").innerHTML = o.pattern ? alertHtml(o.pattern, "a") : "";
   const st=[];
   const p=o.days.find(d=>d.steroid_mg_today>=30); if(p) st.push(`Why was I so high on the afternoon of ${fmtD(p.date)}?`);
