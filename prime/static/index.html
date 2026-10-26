@@ -759,7 +759,12 @@ document.addEventListener("keydown",e=>{ if(e.key===" " && $("#coach").open && C
    where the needle points: no face or body is sent. caps: one frame once the hands are still. drop: six frames over
    three seconds while the person presses the button. One request per check; the sentence Prime says comes from fixed
    code on the server, never from the model. */
-const VC={stream:null, timer:0, check:null, stage:"off", centers:[], still:0, said:"", saidAt:0, crop:null, frames:[]};
+/* Watch mode for the pen check (the sensor check's twin is in autocapture.js): the camera stays on and checks by itself when the
+   hands are steady, until the step looks right. After a "fix" it waits for the hands to move (or a few seconds), so the same
+   view is never re-sent; at most WATCH.max automatic checks (each is a model call) and WATCH.timeout in all. */
+const WATCH={max:3, gap:3500, moveWait:8000, timeout:90000};
+const VC={stream:null, timer:0, check:null, stage:"off", centers:[], still:0, said:"", saidAt:0, crop:null, frames:[],
+  attempts:0, started:0, rearmAt:0, needMove:false, moveRef:null, moveSince:0};
 const VC_SAY={caps:"Hold the pen up in front of the camera, needle end pointing up, about a hand's width away.",
               drop:"Hold the pen up with the needle pointing up, about a hand's width from the camera.",
               cap:"Hold the pen up in front of the camera, needle end pointing up, about a hand's width away.",
@@ -797,8 +802,13 @@ function vcTick(){
     else if(c.handW>.55) { VC.still=0; vcSay("Move the pen a little farther from the camera."); }
     else if(c.clippedTop) { VC.still=0; vcSay("Move the pen down a little, so I can see the needle end."); }
     else if(!steady) { VC.still=0; vcSay("Hold still."); }
-    else if(++VC.still>=8){ vcCapture(); return; }
+    else if(VC.needMove){                          // after a "fix", wait until the hands have moved (or a few seconds)
+      VC.still=0;
+      if((VC.moveRef && Math.hypot(c.cx-VC.moveRef[0], c.cy-VC.moveRef[1])>.06) || now-VC.moveSince>WATCH.moveWait) VC.needMove=false;
+    }
+    else if(now>=VC.rearmAt && ++VC.still>=8){ vcCapture(); return; }
   }
+  if(now-VC.started>WATCH.timeout){ vcFinish("I'll stop watching now. Press Try again when you're ready."); return; }
   VC.timer=setTimeout(vcTick,90);
 }
 async function vcCapture(){
@@ -816,21 +826,35 @@ async function vcCapture(){
       VC.frames.push(vcGrab(c)); await new Promise(r=>setTimeout(r,500)); }
   }
   if(VC.stage!=="capture") return;
-  vcStopCamera(); $("#vcview").hidden=true;
-  vcSay(VC.check==="drop"?"Got it. Looking at the needle tip…":VC.check==="done"?"Got it. Looking at the pen window…":"Got it. Looking at the pen…", true);
-  $("#vcresult").innerHTML=`<div class="frames">${VC.frames.map((u,k)=>`<img src="${u}" alt="Frame ${k+1} that was sent">`).join("")}</div>`;
+  VC.attempts++;
+  vcSay(VC.check==="drop"?"Got it. Looking at the needle tip…":VC.check==="done"?"Got it. Looking at the pen window…":"Got it. Looking…", true);
   S.sentFrames=VC.frames.slice();
-  try{ const r=await api("/api/pen-frames",{method:"POST",body:JSON.stringify({check:VC.check, frames:VC.frames})});
-    $("#vcresult").innerHTML+=`<p class="${r.status==="ok"?"":"warn"}" style="font-size:1.15rem">${esc(r.say)}</p>`;
-    $("#vcsay").textContent=r.status==="ok"?"Done.":r.status==="fix"?"One thing to fix.":"I couldn't tell."; speak(r.say);
+  let r;
+  try{ r=await api("/api/pen-frames",{method:"POST",body:JSON.stringify({check:VC.check, frames:VC.frames})});
     if(r.remaining<=5) $("#remain").textContent=r.remaining+" questions left in this demo";
-  }catch(e){ $("#vcresult").innerHTML+=`<p class="err">${esc(e.message)}</p>`; $("#vcsay").textContent="That did not work."; speak(e.message); }
-  VC.stage="done"; $("#vcgo").textContent="Try again"; $("#vcgo").disabled=false;
+  }catch(e){ vcFinish(e.message, "err"); return; }
+  if(VC.stage!=="capture") return;                                  // closed while the answer was on its way
+  $("#vcresult").innerHTML=`<p class="${r.status==="ok"?"":"warn"}" style="font-size:1.15rem">${esc(r.say)}</p>`;
+  if(r.status==="ok" || VC.attempts>=WATCH.max){ vcFinish(r.say, r.status==="ok"?"ok":"warn", r.status==="ok"?"Done.":"I'll stop watching now."); return; }
+  // Not yet: say what to fix and keep watching. A "fix" waits for the hands to move before the next check.
+  vcSay(r.say+" Adjust it and hold it still, and I will look again.", true); VC.saidAt=performance.now()+3000;
+  Object.assign(VC,{stage:"aim", still:0, centers:[], rearmAt:performance.now()+WATCH.gap, needMove:r.status==="fix",
+                    moveRef:VC.crop?[VC.crop.cx,VC.crop.cy]:null, moveSince:performance.now()});
+  vcTick();
+}
+/* End of watching: camera off, last answer shown, "Try again" to start over. */
+function vcFinish(say, cls="warn", status){
+  VC.stage="done"; vcStopCamera(); $("#vcview").hidden=true;
+  $("#vcresult").innerHTML=`<div class="frames">${S.sentFrames.map((u,k)=>`<img src="${u}" alt="Frame ${k+1} that was sent">`).join("")}</div>`+
+    `<p class="${cls==="ok"?"":cls}" style="font-size:1.15rem">${esc(say)}</p>`;
+  $("#vcsay").textContent=status||(cls==="err"?"That did not work.":""); speak(say);
+  $("#vcgo").textContent="Try again"; $("#vcgo").disabled=false;
 }
 function vcStopCamera(){ clearTimeout(VC.timer); if(VC.stream){ VC.stream.getTracks().forEach(t=>t.stop()); VC.stream=null; } vcDraw(null); }
 async function openCheck(check){
   stopSpeaking(); stopHandsFree(); vcStopCamera();
-  Object.assign(VC,{check, stage:"start", centers:[], still:0, said:"", saidAt:0, crop:null, frames:[]});
+  Object.assign(VC,{check, stage:"start", centers:[], still:0, said:"", saidAt:0, crop:null, frames:[],
+                    attempts:0, started:performance.now(), rearmAt:0, needMove:false, moveRef:null, moveSince:0});
   $("#vctitle").textContent=VC_TITLE[check]||"Camera check";
   $("#vcresult").innerHTML=""; $("#vcgo").textContent="Take it now"; $("#vcgo").disabled=false; $("#vcview").hidden=false; $("#vcsay").textContent="";
   const dlg=$("#vcheck"); if(!dlg.open) dlg.showModal();
@@ -840,11 +864,11 @@ async function openCheck(check){
     VC.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user", width:{ideal:1280}, height:{ideal:720}}, audio:false});
     const v=$("#vcvideo"); v.srcObject=VC.stream; await v.play();
     vcSay(VC_SAY[check], true); await ready; if(VC.stage!=="start") return;
-    VC.stage="aim"; vcTick();
+    VC.stage="aim"; VC.started=performance.now(); vcTick();
   }catch(e){ vcStopCamera(); $("#vcview").hidden=true; VC.stage="done";
     vcSay(e.name==="NotAllowedError"?"The camera is blocked. Do this step without it, or ask someone to look.":"The camera couldn't start. Do this step without it, or ask someone to look.", true); }
 }
-$("#vcgo").onclick=()=>{ if(VC.stage==="aim") vcCapture(); else openCheck(VC.check); };
+$("#vcgo").onclick=()=>{ if(VC.stage==="aim"){ VC.needMove=false; vcCapture(); } else openCheck(VC.check); };
 $("#vcx").onclick=()=>$("#vcheck").close();
 $("#vcheck").addEventListener("close",()=>{ if($("#vcheck").open) return; VC.stage="off"; vcStopCamera(); stopSpeaking(); });
 
